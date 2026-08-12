@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@theme {
+  --color-nostalgia-deep-brown: #24150F;
+  --color-nostalgia-dark-brown: #3A2116;
+  --color-nostalgia-terracotta: #B9472F;
+  --color-nostalgia-dusty-red: #8F3025;
+  --color-nostalgia-warm-red: #C94B32;
+  --color-nostalgia-cream: #F1D7A3;
+  --color-nostalgia-yellow: #E5AD54;
+  --color-nostalgia-gold: #C88A3D;
+
+  --font-display: "Yatra One", "Rozha One", Georgia, serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Outfit", sans-serif;
+}
+
+:root {
+  --color-deep-brown: #24150F;
+  --color-dark-brown: #3A2116;
+  --color-terracotta: #B9472F;
+  --color-dusty-red: #8F3025;
+  --color-warm-red: #C94B32;
+  --color-cream: #F1D7A3;
+  --color-yellow: #E5AD54;
+  --color-gold: #C88A3D;
+}
+
+body {
+  background-color: var(--color-deep-brown);
+  color: var(--color-cream);
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Custom rough painted brush stroke background for active nav item */
+.brush-stroke-active {
+  position: relative;
+  background: linear-gradient(93deg, #C94B32 0%, #8F3025 60%, #B9472F 100%);
+  clip-path: polygon(
+    0% 12%, 4% 0%, 15% 5%, 35% 1%, 60% 7%, 85% 0%, 98% 10%, 
+    100% 45%, 96% 88%, 80% 95%, 55% 91%, 30% 100%, 10% 92%, 0% 80%, 2% 45%
+  );
+  box-shadow: inset 0 0 10px rgba(36, 21, 15, 0.4), 0 4px 15px rgba(201, 75, 50, 0.3);
+}
+
+.brush-stroke-active::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: radial-gradient(circle at 50% 50%, rgba(241, 215, 163, 0.15), transparent 70%);
+  pointer-events: none;
+}
+
+/* Film grain effect overlay */
+.film-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.15 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Aged paper texture overlay */
+.paper-texture {
+  background-image: radial-gradient(circle at 50% 50%, rgba(241, 215, 163, 0.05) 0%, rgba(36, 21, 15, 0.4) 100%),
+                    linear-gradient(to bottom, rgba(36, 21, 15, 0.2), rgba(36, 21, 15, 0.6));
+}
+
+/* Vignette overlay */
+.vignette-overlay {
+  box-shadow: inset 0 0 120px rgba(36, 21, 15, 0.85);
+}
+
+/* Vintage Hand-Painted Logo Styling (70s-90s Bollywood Shopboard Aesthetic) */
+.hand-painted-logo-english {
+  font-family: 'Satisfy', 'Kalam', cursive;
+  color: #F1D7A3;
+  text-shadow: 1px 1px 2px rgba(36, 21, 15, 0.9), 0 0 10px rgba(229, 173, 84, 0.4);
+  letter-spacing: 0.08em;
+}
+
+.hand-painted-logo-devanagari {
+  font-family: 'Yatra One', 'Rozha One', serif;
+  background: linear-gradient(180deg, #FFF0C9 0%, #F1D7A3 45%, #E5AD54 85%, #C88A3D 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(2px 3px 0px #3A2116) 
+          drop-shadow(4px 5px 0px #24150F)
+          drop-shadow(0 0 15px rgba(201, 75, 50, 0.4));
+  letter-spacing: 0.01em;
+  position: relative;
+}
+
+/* Title text painted style */
+.hand-painted-title {
+  font-family: 'Yatra One', 'Rozha One', serif;
+  text-shadow: 2px 2px 0px #3A2116, 4px 4px 8px rgba(36, 21, 15, 0.8), 0 0 20px rgba(229, 173, 84, 0.3);
+  letter-spacing: 0.02em;
+}
+
+@keyframes dustFloat {
+  0% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
+  50% { transform: translateY(-30px) translateX(15px); opacity: 0.8; }
+  100% { transform: translateY(-60px) translateX(0px); opacity: 0.3; }
+}
+
+@keyframes subtlePulse {
+  0%, 100% { opacity: 0.95; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.01); }
+}
+
+@keyframes dialGlow {
+  0%, 100% { filter: drop-shadow(0 0 2px #E5AD54); }
+  50% { filter: drop-shadow(0 0 6px #E5AD54); }
+}
+
+.animate-dust-float {
+  animation: dustFloat 20s infinite linear;
+}
+
+.animate-subtle-pulse {
+  animation: subtlePulse 8s ease-in-out infinite;
+}
+
+.animate-dial-glow {
+  animation: dialGlow 3s ease-in-out infinite;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #24150F;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #B9472F;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #E5AD54;
+}
