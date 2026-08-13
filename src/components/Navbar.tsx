@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Home as HomeIcon, Disc3, Heart, Info, Mail } from 'lucide-react';
 
 interface NavbarProps {
@@ -10,8 +10,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab = 'HOME',
   onSelectTab,
 }) => {
-  const [currentTab, setCurrentTab] = useState(activeTab);
-
   const navItems = [
     { label: 'HOME', icon: HomeIcon },
     { label: 'PLAYLISTS', icon: Disc3 },
@@ -21,24 +19,26 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   const handleNavClick = (label: string) => {
-    setCurrentTab(label);
     if (onSelectTab) onSelectTab(label);
   };
 
   return (
     <div className="flex flex-col space-y-5 max-w-xs z-30 select-none">
       {/* Two-Line Vintage Indian Hand-Painted Logo (1970s-90s Signboard / Poster Style) */}
-      <div className="group cursor-pointer transition-transform duration-300 hover:scale-[1.02] flex flex-col items-center sm:items-start text-center sm:text-left">
+      <div
+        onClick={() => handleNavClick('HOME')}
+        className="group cursor-pointer transition-transform duration-300 hover:scale-[1.02] flex flex-col items-center sm:items-start text-center sm:text-left"
+      >
         <div className="hand-painted-logo-wrapper flex flex-col items-center w-full max-w-[260px] sm:max-w-[300px]">
           
-          {/* Line 1: nostalgia (Small, elegant retro handwritten script, warm cream/golden, centered above Devanagari) */}
+          {/* Line 1: nostalgia */}
           <div className="w-full text-center -mb-2 sm:-mb-2.5 z-10">
             <span className="hand-painted-logo-english text-xl sm:text-2xl md:text-[26px] font-normal tracking-wide text-[#F6E2BC]">
               nostalgia
             </span>
           </div>
 
-          {/* Line 2: नॉस्टेल्जिया (Much larger, bold vintage Devanagari display lettering, hand-painted Bollywood poster style) */}
+          {/* Line 2: नॉस्टेल्जिया */}
           <h1 className="hand-painted-logo-devanagari text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-center leading-none my-0 py-0 text-[#F3DCAC]">
             नॉस्टेल्जिया
           </h1>
@@ -57,13 +57,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         <ul className="flex flex-col space-y-2.5 items-start">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentTab === item.label;
+            const isActive = activeTab === item.label;
 
             return (
               <li key={item.label} className="w-full max-w-[210px]">
                 <button
                   onClick={() => handleNavClick(item.label)}
-                  className={`group relative flex items-center space-x-3 px-4 py-2.5 text-sm font-medium transition-all duration-300 w-full text-left rounded ${
+                  className={`group relative flex items-center space-x-3 px-4 py-2.5 text-sm font-medium transition-all duration-300 w-full text-left rounded cursor-pointer ${
                     isActive
                       ? 'brush-stroke-active text-[#F1D7A3] font-bold shadow-lg scale-105'
                       : 'text-[#F1D7A3]/80 hover:text-[#F1D7A3] hover:translate-x-1.5 hover:bg-[#3A2116]/40 backdrop-blur-xs'
