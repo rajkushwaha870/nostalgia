@@ -27,22 +27,26 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <div className="flex flex-col space-y-5 max-w-xs z-30 select-none">
-      {/* Two-Line Vintage Hand-Painted Indian Logo */}
-      <div className="space-y-1 group cursor-pointer transition-transform duration-300 hover:scale-[1.02] inline-block">
-        {/* Line 1: nostalgia (Small, script, centered above Devanagari title) */}
-        <div className="text-center w-full -mb-2 sm:-mb-3">
-          <span className="hand-painted-logo-english text-lg sm:text-xl md:text-2xl font-normal tracking-wider opacity-95">
-            nostalgia
-          </span>
+      {/* Two-Line Vintage Indian Hand-Painted Logo (1970s-90s Signboard / Poster Style) */}
+      <div className="group cursor-pointer transition-transform duration-300 hover:scale-[1.02] flex flex-col items-center sm:items-start text-center sm:text-left">
+        <div className="hand-painted-logo-wrapper flex flex-col items-center w-full max-w-[260px] sm:max-w-[300px]">
+          
+          {/* Line 1: nostalgia (Small, elegant retro handwritten script, warm cream/golden, centered above Devanagari) */}
+          <div className="w-full text-center -mb-2 sm:-mb-2.5 z-10">
+            <span className="hand-painted-logo-english text-xl sm:text-2xl md:text-[26px] font-normal tracking-wide text-[#F6E2BC]">
+              nostalgia
+            </span>
+          </div>
+
+          {/* Line 2: नॉस्टेल्जिया (Much larger, bold vintage Devanagari display lettering, hand-painted Bollywood poster style) */}
+          <h1 className="hand-painted-logo-devanagari text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-center leading-none my-0 py-0 text-[#F3DCAC]">
+            नॉस्टेल्जिया
+          </h1>
+
         </div>
 
-        {/* Line 2: नॉस्टेल्जिया (Much larger, bold Devanagari display title) */}
-        <h1 className="hand-painted-logo-devanagari text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-none text-center">
-          नॉस्टेल्जिया
-        </h1>
-
-        {/* Tagline */}
-        <p className="text-xs sm:text-sm font-serif italic text-[#E5AD54]/90 tracking-wide pl-1 border-l-2 border-[#B9472F]/60 py-0.5 mt-2">
+        {/* Vintage Tagline */}
+        <p className="text-xs sm:text-sm font-serif italic text-[#E5AD54]/90 tracking-wide pl-1 border-l-2 border-[#B9472F]/60 py-0.5 mt-2.5">
           Some songs don't just play. <br />
           <span className="text-[#F1D7A3]/90">They take you back.</span>
         </p>
