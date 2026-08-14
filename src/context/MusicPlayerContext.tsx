@@ -2,6 +2,13 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { songs } from '../data/songs';
 import type { Song } from '../data/songs';
 
+declare global {
+  interface Window {
+    onYouTubeIframeAPIReady?: () => void;
+    YT?: any;
+  }
+}
+
 export type RepeatMode = 'off' | 'one';
 
 interface MusicPlayerContextType {
@@ -32,13 +39,18 @@ interface MusicPlayerContextType {
   toggleShuffle: () => void;
   toggleRepeat: () => void;
   toggleFavorite: (songId: number) => void;
+  toggleFavourite: (songId: number) => void;
+  addFavourite: (songId: number) => void;
+  removeFavourite: (songId: number) => void;
+  clearFavourites: () => void;
   clearError: () => void;
   isFavorite: (songId: number) => boolean;
+  isFavourite: (songId: number) => boolean;
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_FAVS_KEY = 'nostalgia_favorites';
+const LOCAL_STORAGE_FAVS_KEY = 'nostalgia_favourites';
 
 export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentQueue, setCurrentQueue] = useState<Song[]>(songs);
@@ -47,7 +59,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(songs[0]?.duration || 0);
+  const [duration, setDuration] = useState<number>(0);
   const [volume, setVolumeState] = useState<number>(75);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isShuffle, setIsShuffle] = useState<boolean>(false);
@@ -67,179 +79,240 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const currentSong = currentQueue[currentQueueIndex] || songs[0];
   const currentIndex = currentQueueIndex;
 
-  // Single HTML5 Audio instance
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Single YouTube Player instance ref
+  const ytPlayerRef = useRef<any>(null);
+  const isPlayerReadyRef = useRef<boolean>(false);
+  const pendingPlayRef = useRef<boolean>(false);
 
-  // Initialize Audio element once
+  // Keep refs of values needed in event handlers to avoid stale closures
+  const currentQueueRef = useRef(currentQueue);
+  currentQueueRef.current = currentQueue;
+  const currentQueueIndexRef = useRef(currentQueueIndex);
+  currentQueueIndexRef.current = currentQueueIndex;
+  const isShuffleRef = useRef(isShuffle);
+  isShuffleRef.current = isShuffle;
+  const repeatModeRef = useRef(repeatMode);
+  repeatModeRef.current = repeatMode;
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
+
+  // Next song handler definition
+  const nextSong = useCallback(() => {
+    const queue = currentQueueRef.current;
+    const index = currentQueueIndexRef.current;
+    const shuffle = isShuffleRef.current;
+    if (queue.length === 0) return;
+
+    let nextIdx: number;
+    if (shuffle && queue.length > 1) {
+      do {
+        nextIdx = Math.floor(Math.random() * queue.length);
+      } while (nextIdx === index);
+    } else {
+      nextIdx = (index + 1) % queue.length;
+    }
+
+    setCurrentQueueIndex(nextIdx);
+    setIsPlaying(true);
+  }, []);
+
+  const nextSongRef = useRef(nextSong);
+  nextSongRef.current = nextSong;
+
+  // Previous song handler definition
+  const prevSong = useCallback(() => {
+    if (ytPlayerRef.current && isPlayerReadyRef.current) {
+      const curTime = ytPlayerRef.current.getCurrentTime ? ytPlayerRef.current.getCurrentTime() : 0;
+      if (curTime > 3) {
+        ytPlayerRef.current.seekTo(0, true);
+        setCurrentTime(0);
+        return;
+      }
+    }
+
+    const queue = currentQueueRef.current;
+    const index = currentQueueIndexRef.current;
+    const shuffle = isShuffleRef.current;
+    if (queue.length === 0) return;
+
+    let prevIdx: number;
+    if (shuffle && queue.length > 1) {
+      do {
+        prevIdx = Math.floor(Math.random() * queue.length);
+      } while (prevIdx === index);
+    } else {
+      prevIdx = (index - 1 + queue.length) % queue.length;
+    }
+
+    setCurrentQueueIndex(prevIdx);
+    setIsPlaying(true);
+  }, []);
+
+  // Initialize YouTube Iframe API & Player
   useEffect(() => {
-    const audio = new Audio();
-    audio.preload = 'metadata';
-    audioRef.current = audio;
+    let checkInterval: any = null;
+
+    const initPlayer = () => {
+      if (!window.YT || !window.YT.Player) return;
+
+      const container = document.getElementById('nostalgia-yt-iframe');
+      if (!container || ytPlayerRef.current) return;
+
+      ytPlayerRef.current = new window.YT.Player('nostalgia-yt-iframe', {
+        height: '1',
+        width: '1',
+        videoId: currentSong.youtubeId,
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          origin: window.location.origin,
+        },
+        events: {
+          onReady: (event: any) => {
+            isPlayerReadyRef.current = true;
+            event.target.setVolume(isMuted ? 0 : volume);
+            if (pendingPlayRef.current || isPlayingRef.current) {
+              pendingPlayRef.current = false;
+              event.target.playVideo();
+            }
+          },
+          onStateChange: (event: any) => {
+            // YT.PlayerState: PLAYING=1, PAUSED=2, ENDED=0, BUFFERING=3, CUED=5
+            if (event.data === 1) { // PLAYING
+              setIsPlaying(true);
+              setErrorMessage(null); // Clear "Tuning in..." toast
+              const dur = event.target.getDuration();
+              if (dur && typeof dur === 'number') {
+                setDuration(dur);
+              }
+            } else if (event.data === 2) { // PAUSED
+              setIsPlaying(false);
+            } else if (event.data === 3) { // BUFFERING
+              setErrorMessage('Tuning in...');
+            } else if (event.data === 0) { // ENDED
+              if (repeatModeRef.current === 'one') {
+                event.target.seekTo(0, true);
+                event.target.playVideo();
+              } else {
+                nextSongRef.current();
+              }
+            }
+          },
+          onError: (event: any) => {
+            console.warn('YouTube Player error code:', event.data);
+            setIsPlaying(false);
+            setErrorMessage("This memory couldn't be played.");
+          },
+        },
+      });
+    };
+
+    if (window.YT && window.YT.Player) {
+      initPlayer();
+    } else {
+      const existingScript = document.getElementById('yt-iframe-api-script');
+      if (!existingScript) {
+        const script = document.createElement('script');
+        script.id = 'yt-iframe-api-script';
+        script.src = 'https://www.youtube.com/iframe_api';
+        document.body.appendChild(script);
+      }
+
+      window.onYouTubeIframeAPIReady = () => {
+        initPlayer();
+      };
+
+      checkInterval = setInterval(() => {
+        if (window.YT && window.YT.Player && !ytPlayerRef.current) {
+          initPlayer();
+          clearInterval(checkInterval);
+        }
+      }, 300);
+    }
 
     return () => {
-      audio.pause();
-      audio.src = '';
+      if (checkInterval) clearInterval(checkInterval);
     };
   }, []);
 
-  // Update src when currentSong changes
+  // Update YouTube Video when currentSong changes
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !currentSong) return;
-
-    // Reset current time and state for new song
-    setErrorMessage(null);
+    if (!currentSong) return;
     setCurrentTime(0);
 
-    audio.src = currentSong.audioUrl;
-    audio.load();
-
-    if (currentSong.duration > 0) {
-      setDuration(currentSong.duration);
-    }
-
-    if (isPlaying) {
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.warn('Audio playback failed:', err.message || err);
-          setIsPlaying(false);
-          setErrorMessage(`Unable to play "${currentSong.title}". Skipping...`);
-        });
+    if (ytPlayerRef.current && isPlayerReadyRef.current) {
+      if (isPlaying) {
+        setErrorMessage('Tuning in...');
+        ytPlayerRef.current.loadVideoById(currentSong.youtubeId);
+      } else {
+        setErrorMessage(null);
+        ytPlayerRef.current.cueVideoById(currentSong.youtubeId);
       }
     }
-  }, [currentQueueIndex, currentSong]);
+  }, [currentQueueIndex, currentSong.youtubeId]);
 
-  // Handle audio volume & mute
+  // Volume & Mute Sync with YouTube Player
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.volume = isMuted ? 0 : volume / 100;
+    if (ytPlayerRef.current && isPlayerReadyRef.current) {
+      if (isMuted) {
+        ytPlayerRef.current.mute();
+      } else {
+        ytPlayerRef.current.unMute();
+        ytPlayerRef.current.setVolume(volume);
+      }
+    }
   }, [volume, isMuted]);
 
-  // Audio Event Listeners setup
+  // Time Updates while playing
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    let interval: any = null;
 
-    const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
-    };
-
-    const handleLoadedMetadata = () => {
-      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
-        setDuration(audio.duration);
-      }
-    };
-
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-
-    const handleError = () => {
-      setIsPlaying(false);
-      setErrorMessage(`Failed to load "${currentSong?.title || 'track'}". You can try another track.`);
-    };
-
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
-    audio.addEventListener('error', handleError);
-
-    return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
-      audio.removeEventListener('error', handleError);
-    };
-  }, [currentSong]);
-
-  // Next song handler
-  const nextSong = useCallback(() => {
-    if (currentQueue.length === 0) return;
-
-    let nextIndex: number;
-    if (isShuffle && currentQueue.length > 1) {
-      do {
-        nextIndex = Math.floor(Math.random() * currentQueue.length);
-      } while (nextIndex === currentQueueIndex);
-    } else {
-      nextIndex = (currentQueueIndex + 1) % currentQueue.length;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        if (ytPlayerRef.current && isPlayerReadyRef.current && typeof ytPlayerRef.current.getCurrentTime === 'function') {
+          const curTime = ytPlayerRef.current.getCurrentTime();
+          if (typeof curTime === 'number' && !isNaN(curTime)) {
+            setCurrentTime(curTime);
+          }
+          const dur = ytPlayerRef.current.getDuration();
+          if (typeof dur === 'number' && !isNaN(dur) && dur > 0) {
+            setDuration(dur);
+          }
+        }
+      }, 250);
     }
 
-    setCurrentQueueIndex(nextIndex);
-    setIsPlaying(true);
-  }, [currentQueueIndex, isShuffle, currentQueue]);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isPlaying]);
 
-  // Previous song handler
-  const prevSong = useCallback(() => {
-    const audio = audioRef.current;
-    if (audio && audio.currentTime > 3) {
-      audio.currentTime = 0;
-      setCurrentTime(0);
+  // Controls Implementation
+  const togglePlay = useCallback(() => {
+    if (!ytPlayerRef.current || !isPlayerReadyRef.current) {
+      pendingPlayRef.current = !isPlaying;
+      setIsPlaying((prev) => !prev);
       return;
     }
 
-    if (currentQueue.length === 0) return;
-
-    let prevIndex: number;
-    if (isShuffle && currentQueue.length > 1) {
-      do {
-        prevIndex = Math.floor(Math.random() * currentQueue.length);
-      } while (prevIndex === currentQueueIndex);
-    } else {
-      prevIndex = (currentQueueIndex - 1 + currentQueue.length) % currentQueue.length;
-    }
-
-    setCurrentQueueIndex(prevIndex);
-    setIsPlaying(true);
-  }, [currentQueueIndex, isShuffle, currentQueue]);
-
-  // Auto-next song trigger on ended
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const handleEnded = () => {
-      if (repeatMode === 'one') {
-        audio.currentTime = 0;
-        audio.play().catch(() => setIsPlaying(false));
-      } else {
-        nextSong();
-      }
-    };
-
-    audio.addEventListener('ended', handleEnded);
-    return () => {
-      audio.removeEventListener('ended', handleEnded);
-    };
-  }, [repeatMode, isShuffle, currentQueueIndex, currentQueue, nextSong]);
-
-  // Play / Pause controls
-  const togglePlay = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
     if (isPlaying) {
-      audio.pause();
+      ytPlayerRef.current.pauseVideo();
     } else {
-      setErrorMessage(null);
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.warn('Playback error:', err);
-          setIsPlaying(false);
-          setErrorMessage(`Unable to play "${currentSong?.title || 'track'}".`);
-        });
-      }
+      setErrorMessage('Tuning in...');
+      ytPlayerRef.current.playVideo();
     }
-  }, [isPlaying, currentSong]);
+  }, [isPlaying]);
 
   const pause = useCallback(() => {
-    const audio = audioRef.current;
-    if (audio) {
-      audio.pause();
+    if (ytPlayerRef.current && isPlayerReadyRef.current) {
+      ytPlayerRef.current.pauseVideo();
+    } else {
+      setIsPlaying(false);
     }
   }, []);
 
@@ -249,7 +322,16 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setCurrentQueueIndex(newIndex);
     }
     setIsPlaying(true);
-  }, [currentQueueIndex]);
+    if (ytPlayerRef.current && isPlayerReadyRef.current) {
+      setErrorMessage('Tuning in...');
+      const targetSong = currentQueue[newIndex];
+      if (targetSong) {
+        ytPlayerRef.current.loadVideoById(targetSong.youtubeId);
+      }
+    } else {
+      pendingPlayRef.current = true;
+    }
+  }, [currentQueueIndex, currentQueue]);
 
   const playQueue = useCallback((queue: Song[], startIndex = 0, playlistId?: string) => {
     if (queue.length === 0) return;
@@ -257,6 +339,14 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCurrentQueueIndex(startIndex);
     setActivePlaylistId(playlistId || null);
     setIsPlaying(true);
+
+    const targetSong = queue[startIndex];
+    if (targetSong && ytPlayerRef.current && isPlayerReadyRef.current) {
+      setErrorMessage('Tuning in...');
+      ytPlayerRef.current.loadVideoById(targetSong.youtubeId);
+    } else {
+      pendingPlayRef.current = true;
+    }
   }, []);
 
   const playSongInQueue = useCallback((song: Song, queue?: Song[], playlistId?: string) => {
@@ -268,18 +358,24 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setActivePlaylistId(playlistId || null);
     }
 
-    if (songIdx !== -1) {
-      setCurrentQueueIndex(songIdx);
-    }
+    const idxToPlay = songIdx !== -1 ? songIdx : 0;
+    setCurrentQueueIndex(idxToPlay);
     setIsPlaying(true);
+
+    if (ytPlayerRef.current && isPlayerReadyRef.current) {
+      setErrorMessage('Tuning in...');
+      ytPlayerRef.current.loadVideoById(song.youtubeId);
+    } else {
+      pendingPlayRef.current = true;
+    }
   }, [currentQueue]);
 
   const seek = useCallback((timeInSeconds: number) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const clampedTime = Math.max(0, Math.min(timeInSeconds, duration || audio.duration || 0));
-    audio.currentTime = clampedTime;
+    const clampedTime = Math.max(0, Math.min(timeInSeconds, duration || 100));
     setCurrentTime(clampedTime);
+    if (ytPlayerRef.current && isPlayerReadyRef.current && typeof ytPlayerRef.current.seekTo === 'function') {
+      ytPlayerRef.current.seekTo(clampedTime, true);
+    }
   }, [duration]);
 
   const setVolume = useCallback((vol: number) => {
@@ -288,10 +384,23 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (clamped > 0 && isMuted) {
       setIsMuted(false);
     }
+    if (ytPlayerRef.current && isPlayerReadyRef.current && typeof ytPlayerRef.current.setVolume === 'function') {
+      ytPlayerRef.current.setVolume(clamped);
+    }
   }, [isMuted]);
 
   const toggleMute = useCallback(() => {
-    setIsMuted((prev) => !prev);
+    setIsMuted((prev) => {
+      const nextMute = !prev;
+      if (ytPlayerRef.current && isPlayerReadyRef.current) {
+        if (nextMute) {
+          ytPlayerRef.current.mute();
+        } else {
+          ytPlayerRef.current.unMute();
+        }
+      }
+      return nextMute;
+    });
   }, []);
 
   const toggleShuffle = useCallback(() => {
@@ -302,6 +411,14 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setRepeatMode((prev) => (prev === 'off' ? 'one' : 'off'));
   }, []);
 
+  const saveFavsToLocalStorage = (favs: number[]) => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_FAVS_KEY, JSON.stringify(favs));
+    } catch (err) {
+      console.warn('Failed to save favorites to localStorage:', err);
+    }
+  };
+
   const toggleFavorite = useCallback((songId: number) => {
     setFavorites((prevFavs) => {
       let updated: number[];
@@ -310,13 +427,32 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       } else {
         updated = [...prevFavs, songId];
       }
-      try {
-        localStorage.setItem(LOCAL_STORAGE_FAVS_KEY, JSON.stringify(updated));
-      } catch (err) {
-        console.warn('Failed to save favorites to localStorage:', err);
-      }
+      saveFavsToLocalStorage(updated);
       return updated;
     });
+  }, []);
+
+  const addFavourite = useCallback((songId: number) => {
+    setFavorites((prevFavs) => {
+      if (prevFavs.includes(songId)) return prevFavs;
+      const updated = [...prevFavs, songId];
+      saveFavsToLocalStorage(updated);
+      return updated;
+    });
+  }, []);
+
+  const removeFavourite = useCallback((songId: number) => {
+    setFavorites((prevFavs) => {
+      if (!prevFavs.includes(songId)) return prevFavs;
+      const updated = prevFavs.filter((id) => id !== songId);
+      saveFavsToLocalStorage(updated);
+      return updated;
+    });
+  }, []);
+
+  const clearFavourites = useCallback(() => {
+    setFavorites([]);
+    saveFavsToLocalStorage([]);
   }, []);
 
   const isFavorite = useCallback((songId: number) => {
@@ -403,11 +539,32 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         toggleShuffle,
         toggleRepeat,
         toggleFavorite,
+        toggleFavourite: toggleFavorite,
+        addFavourite,
+        removeFavourite,
+        clearFavourites,
         clearError,
         isFavorite,
+        isFavourite: isFavorite,
       }}
     >
       {children}
+      {/* Off-screen Youtube Player Iframe container */}
+      <div
+        id="youtube-player-container"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          right: 0,
+          width: '1px',
+          height: '1px',
+          opacity: 0.001,
+          pointerEvents: 'none',
+          zIndex: -9999,
+        }}
+      >
+        <div id="nostalgia-yt-iframe" />
+      </div>
     </MusicPlayerContext.Provider>
   );
 };

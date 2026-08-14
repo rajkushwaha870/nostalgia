@@ -57,7 +57,6 @@ export const Playlists: React.FC<PlaylistsProps> = ({ initialPlaylistId = null }
     return result;
   }, [selectedCategory, searchQuery]);
 
-  // Direct Song Search Results (when searching for a song or artist name)
   const searchedSongs = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase().trim();
@@ -65,7 +64,7 @@ export const Playlists: React.FC<PlaylistsProps> = ({ initialPlaylistId = null }
       (s) =>
         s.title.toLowerCase().includes(q) ||
         s.artist.toLowerCase().includes(q) ||
-        s.album.toLowerCase().includes(q)
+        (s.album && s.album.toLowerCase().includes(q))
     );
   }, [searchQuery]);
 

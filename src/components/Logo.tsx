@@ -9,10 +9,22 @@ export const Logo: React.FC<LogoProps> = ({ onSelectTab }) => {
     if (onSelectTab) onSelectTab('HOME');
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleLogoClick();
+    }
+  };
+
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={handleLogoClick}
-      className="group cursor-pointer transition-transform duration-300 hover:scale-[1.02] flex flex-col items-center sm:items-start text-center sm:text-left select-none"
+      onKeyDown={handleKeyDown}
+      aria-label="NOSTALGIA — Return to Home"
+      title="NOSTALGIA — Return to Home"
+      className="group cursor-pointer transition-transform duration-300 hover:scale-[1.02] flex flex-col items-center sm:items-start text-center sm:text-left select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5AD54] rounded-sm p-1"
     >
       <div className="hand-painted-logo-wrapper flex flex-col items-center w-full max-w-[260px] sm:max-w-[300px]">
         {/* Line 1: nostalgia */}

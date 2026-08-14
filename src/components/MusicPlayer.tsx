@@ -6,7 +6,6 @@ import {
   SkipForward,
   Shuffle,
   Repeat,
-  Heart,
   Volume2,
   Volume1,
   VolumeX,
@@ -16,6 +15,8 @@ import {
   X,
 } from 'lucide-react';
 import { useMusicPlayer } from '../context/MusicPlayerContext';
+import { FavouriteButton } from './FavouriteButton';
+import { MusicVisualizer } from './MusicVisualizer';
 
 const formatTime = (secs: number): string => {
   if (isNaN(secs) || secs < 0) return '00:00';
@@ -43,22 +44,19 @@ export const MusicPlayer: React.FC = () => {
     toggleMute,
     toggleShuffle,
     toggleRepeat,
-    toggleFavorite,
     clearError,
-    isFavorite,
   } = useMusicPlayer();
 
   const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(false);
   const [artworkAnimate, setArtworkAnimate] = useState(false);
 
-  // Subtle animation trigger when song changes
+  // Smooth slide & fade transition trigger when song changes (duration 350ms)
   useEffect(() => {
     setArtworkAnimate(true);
-    const timer = setTimeout(() => setArtworkAnimate(false), 400);
+    const timer = setTimeout(() => setArtworkAnimate(false), 350);
     return () => clearTimeout(timer);
   }, [currentSong.id]);
 
-  const liked = isFavorite(currentSong.id);
   const progressPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,90 +74,90 @@ export const MusicPlayer: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto z-30 select-none px-2 sm:px-4 pb-2 relative">
+    <div className="w-full max-w-6xl mx-auto z-30 select-none px-2 sm:px-4 pb-2 relative" aria-label="Music Player Console">
       
       {/* Unobtrusive Error Toast */}
       {errorMessage && (
         <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-[#1c0e09]/90 border border-[#B9472F]/50 text-[#F1D7A3] px-3 py-1.5 rounded-full text-xs flex items-center gap-2 shadow-lg backdrop-blur-md animate-fade-in z-40">
           <AlertCircle className="w-3.5 h-3.5 text-[#B9472F] shrink-0" />
           <span>{errorMessage}</span>
-          <button onClick={clearError} className="p-0.5 hover:text-[#B9472F] transition-colors">
+          <button
+            onClick={clearError}
+            aria-label="Dismiss error notification"
+            className="p-0.5 hover:text-[#B9472F] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E5AD54] rounded"
+          >
             <X className="w-3 h-3" />
           </button>
         </div>
       )}
 
-      {/* Translucent dark brown-black player floating naturally over the background artwork */}
-      <div className="relative bg-[#140b07]/50 backdrop-blur-md rounded-2xl sm:rounded-full px-4 sm:px-6 py-2.5 sm:py-3 border border-[#F1D7A3]/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4 transition-all">
+      {/* Genuinely Transparent Glass Player Floating Over Background Artwork */}
+      <div className="relative bg-[#140b07]/35 backdrop-blur-sm sm:backdrop-blur-md rounded-2xl sm:rounded-full px-3.5 sm:px-6 py-2.5 sm:py-3 border border-[#F1D7A3]/15 shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex flex-col md:flex-row items-center justify-between gap-2.5 sm:gap-4 transition-all">
         
-        {/* LEFT: Album Art & Track Details */}
-        <div className="flex items-center space-x-3 w-full md:w-1/3 min-w-0">
-          {/* Small rounded album artwork */}
-          <div className="relative group shrink-0">
-            <div
-              className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#24150F] border border-[#F1D7A3]/20 shadow-md flex items-center justify-center overflow-hidden p-0.5 transition-all duration-300 ${
-                artworkAnimate ? 'scale-95 opacity-80' : 'scale-100 opacity-100'
-              }`}
-            >
-              {currentSong.artwork ? (
-                <div className="relative w-full h-full rounded-full overflow-hidden flex items-center justify-center">
-                  <img
-                    src={currentSong.artwork}
-                    alt={currentSong.title}
-                    className={`w-full h-full object-cover rounded-full ${isPlaying ? 'animate-spin' : ''}`}
-                    style={{ animationDuration: '10s' }}
-                    onError={(e) => {
-                      // Fallback if image fails
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                  <div className="absolute w-2.5 h-2.5 rounded-full bg-[#B9472F] border border-[#F1D7A3]" />
-                </div>
-              ) : (
-                <div className="relative w-full h-full rounded-full bg-[#160c08] flex items-center justify-center">
-                  <Disc className={`w-6 h-6 text-[#E5AD54] transition-transform duration-1000 ${isPlaying ? 'animate-spin' : ''}`} />
-                  <div className="absolute w-2.5 h-2.5 rounded-full bg-[#B9472F] border border-[#F1D7A3]" />
-                </div>
-              )}
+        {/* LEFT: Album Art & Track Details with Song Change Slide & Fade Transition */}
+        <div className="flex items-center space-x-3 w-full md:w-1/3 min-w-0 justify-between md:justify-start">
+          {/* Track Details Container */}
+          <div
+            className={`flex items-center space-x-3 flex-1 min-w-0 transition-all duration-350 ease-out transform ${
+              artworkAnimate ? 'opacity-0 translate-x-2' : 'opacity-100 translate-x-0'
+            }`}
+          >
+            {/* Small rounded album artwork */}
+            <div className="relative group shrink-0">
+              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#24150F]/80 border border-[#F1D7A3]/20 shadow-md flex items-center justify-center overflow-hidden p-0.5">
+                {currentSong.artwork ? (
+                  <div className="relative w-full h-full rounded-full overflow-hidden flex items-center justify-center">
+                    <img
+                      src={currentSong.artwork}
+                      alt={currentSong.title}
+                      loading="lazy"
+                      className={`w-full h-full object-cover rounded-full ${isPlaying ? 'animate-spin' : ''}`}
+                      style={{ animationDuration: '10s' }}
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                    <div className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#B9472F] border border-[#F1D7A3]" />
+                  </div>
+                ) : (
+                  <div className="relative w-full h-full rounded-full bg-[#160c08] flex items-center justify-center">
+                    <Disc className={`w-5 h-5 sm:w-6 sm:h-6 text-[#E5AD54] transition-transform duration-1000 ${isPlaying ? 'animate-spin' : ''}`} />
+                    <div className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#B9472F] border border-[#F1D7A3]" />
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Track Info */}
-          <div className={`min-w-0 flex-1 transition-opacity duration-300 ${artworkAnimate ? 'opacity-70' : 'opacity-100'}`}>
-            <div className="text-[9px] font-mono tracking-widest text-[#E5AD54] uppercase font-semibold flex items-center gap-1.5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-              <span className={`w-1.5 h-1.5 rounded-full bg-[#B9472F] ${isPlaying ? 'animate-pulse' : ''}`} />
-              NOW PLAYING
+            {/* Track Info & Vintage Radio Signal Visualizer */}
+            <div className="min-w-0 flex-1">
+              <div className="text-[9px] font-mono tracking-widest text-[#E5AD54] uppercase font-semibold flex items-center gap-1.5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                <span className={`w-1.5 h-1.5 rounded-full bg-[#B9472F] ${isPlaying ? 'animate-pulse' : ''}`} />
+                <span>NOW PLAYING</span>
+                {/* Vintage Radio Signal Visualizer */}
+                <MusicVisualizer isPlaying={isPlaying} />
+              </div>
+              <h3 className="text-xs sm:text-sm font-serif font-bold text-[#F1D7A3] truncate tracking-wide drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+                {currentSong.title}
+              </h3>
+              <p className="text-[10px] sm:text-[11px] text-[#F1D7A3]/75 truncate font-sans drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                {currentSong.artist} • <span className="italic opacity-80">{currentSong.album}</span>
+              </p>
             </div>
-            <h3 className="text-xs sm:text-sm font-serif font-bold text-[#F1D7A3] truncate tracking-wide drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-              {currentSong.title}
-            </h3>
-            <p className="text-[11px] text-[#F1D7A3]/70 truncate font-sans drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-              {currentSong.artist} • <span className="italic opacity-80">{currentSong.album}</span>
-            </p>
           </div>
 
           {/* Favourite Button */}
-          <button
-            onClick={() => toggleFavorite(currentSong.id)}
-            className="p-1.5 rounded-full text-[#F1D7A3]/80 hover:text-[#B9472F] transition-colors focus:outline-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] cursor-pointer"
-            title={liked ? 'Remove from Favourites' : 'Add to Favourites'}
-          >
-            <Heart
-              className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 ${
-                liked ? 'fill-[#B9472F] text-[#B9472F] scale-110' : 'hover:scale-110 text-[#F1D7A3]/80'
-              }`}
-            />
-          </button>
+          <FavouriteButton songId={currentSong.id} size={18} />
         </div>
 
         {/* CENTER: Player Controls & Progress Bar */}
-        <div className="flex flex-col items-center w-full md:w-5/12 space-y-1.5">
+        <div className="flex flex-col items-center w-full md:w-5/12 space-y-1 sm:space-y-1.5">
           {/* Controls */}
           <div className="flex items-center space-x-4 sm:space-x-5">
             {/* Shuffle */}
             <button
               onClick={toggleShuffle}
-              className={`p-1 transition-colors cursor-pointer drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${
+              aria-label={isShuffle ? 'Disable shuffle' : 'Enable shuffle'}
+              className={`p-1 transition-colors cursor-pointer drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5AD54] rounded ${
                 isShuffle ? 'text-[#B9472F]' : 'text-[#F1D7A3]/70 hover:text-[#F1D7A3]'
               }`}
               title={isShuffle ? 'Shuffle Enabled' : 'Enable Shuffle'}
@@ -170,7 +168,8 @@ export const MusicPlayer: React.FC = () => {
             {/* Previous */}
             <button
               onClick={prevSong}
-              className="p-1 text-[#F1D7A3]/90 hover:text-[#F1D7A3] transition-transform active:scale-90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] cursor-pointer"
+              aria-label="Previous track (or restart if playing past 3 seconds)"
+              className="p-1 text-[#F1D7A3]/90 hover:text-[#F1D7A3] transition-transform active:scale-90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5AD54] rounded"
               title="Previous Song (Restart if > 3s)"
             >
               <SkipBack className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -179,7 +178,8 @@ export const MusicPlayer: React.FC = () => {
             {/* Play/Pause Button - Dusty red/terracotta active play button with warm cream icon */}
             <button
               onClick={togglePlay}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#B9472F] hover:bg-[#C94B32] active:scale-95 transition-all text-[#F1D7A3] flex items-center justify-center shadow-[0_2px_10px_rgba(185,71,47,0.4)] border border-[#F1D7A3]/30 cursor-pointer"
+              aria-label={isPlaying ? 'Pause music (Space)' : 'Play music (Space)'}
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#B9472F] hover:bg-[#C94B32] active:scale-95 transition-all text-[#F1D7A3] flex items-center justify-center shadow-[0_2px_10px_rgba(185,71,47,0.4)] border border-[#F1D7A3]/30 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5AD54]"
               title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
             >
               {isPlaying ? (
@@ -192,7 +192,8 @@ export const MusicPlayer: React.FC = () => {
             {/* Next */}
             <button
               onClick={nextSong}
-              className="p-1 text-[#F1D7A3]/90 hover:text-[#F1D7A3] transition-transform active:scale-90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] cursor-pointer"
+              aria-label="Next track"
+              className="p-1 text-[#F1D7A3]/90 hover:text-[#F1D7A3] transition-transform active:scale-90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5AD54] rounded"
               title="Next Song"
             >
               <SkipForward className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -201,7 +202,8 @@ export const MusicPlayer: React.FC = () => {
             {/* Repeat */}
             <button
               onClick={toggleRepeat}
-              className={`p-1 transition-colors cursor-pointer drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] relative ${
+              aria-label={repeatMode === 'one' ? 'Disable repeat song' : 'Enable repeat song'}
+              className={`p-1 transition-colors cursor-pointer drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5AD54] rounded ${
                 repeatMode === 'one' ? 'text-[#B9472F]' : 'text-[#F1D7A3]/70 hover:text-[#F1D7A3]'
               }`}
               title={repeatMode === 'one' ? 'Repeat Song Active' : 'Repeat Off'}
@@ -234,7 +236,8 @@ export const MusicPlayer: React.FC = () => {
                 step={0.1}
                 value={currentTime}
                 onChange={handleSeekChange}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                aria-label="Seek playback position"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer focus-visible:opacity-100 focus-visible:accent-[#B9472F]"
                 title={`Seek: ${formatTime(currentTime)} / ${formatTime(duration)}`}
               />
             </div>
@@ -243,12 +246,13 @@ export const MusicPlayer: React.FC = () => {
         </div>
 
         {/* RIGHT: Volume & Secondary Controls */}
-        <div className="flex items-center justify-end space-x-3 w-full md:w-1/4">
+        <div className="flex items-center justify-end space-x-3 w-full md:w-1/4 justify-between md:justify-end">
           {/* Volume Control */}
           <div className="flex items-center space-x-2 text-[#F1D7A3]/80">
             <button
               onClick={toggleMute}
-              className="p-1 hover:text-[#F1D7A3] transition-colors cursor-pointer"
+              aria-label={isMuted ? 'Unmute volume' : 'Mute volume'}
+              className="p-1 hover:text-[#F1D7A3] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5AD54] rounded"
               title={isMuted ? 'Unmute' : 'Mute'}
             >
               {renderVolumeIcon()}
@@ -259,7 +263,8 @@ export const MusicPlayer: React.FC = () => {
               max="100"
               value={isMuted ? 0 : volume}
               onChange={(e) => setVolume(Number(e.target.value))}
-              className="w-16 sm:w-20 h-1 bg-[#24150F]/70 accent-[#B9472F] rounded-lg cursor-pointer border border-[#F1D7A3]/10"
+              aria-label="Volume level"
+              className="w-16 sm:w-20 h-1 bg-[#24150F]/70 accent-[#B9472F] rounded-lg cursor-pointer border border-[#F1D7A3]/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E5AD54]"
               title={`Volume: ${isMuted ? 0 : volume}%`}
             />
           </div>
@@ -267,7 +272,8 @@ export const MusicPlayer: React.FC = () => {
           {/* Playlist Queue Toggle Button */}
           <button
             onClick={() => setShowPlaylistDrawer((prev) => !prev)}
-            className={`p-1.5 rounded-full transition-all drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] cursor-pointer ${
+            aria-label="Toggle playlist queue drawer"
+            className={`p-1.5 rounded-full transition-all drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5AD54] ${
               showPlaylistDrawer
                 ? 'text-[#B9472F] bg-[#F1D7A3]/10'
                 : 'text-[#F1D7A3]/80 hover:text-[#F1D7A3] hover:bg-[#F1D7A3]/10'

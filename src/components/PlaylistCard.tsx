@@ -17,10 +17,21 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
   onPlayPlaylist,
   isPlayingThisPlaylist = false,
 }) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelectPlaylist(playlist.id);
+    }
+  };
+
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelectPlaylist(playlist.id)}
-      className="group relative cursor-pointer select-none transition-all duration-300 transform hover:-translate-y-1.5"
+      onKeyDown={handleKeyDown}
+      aria-label={`Open ${playlist.title} playlist, containing ${songCount} songs`}
+      className="group relative cursor-pointer select-none transition-all duration-300 transform hover:-translate-y-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5AD54] rounded-sm"
     >
       {/* Outer Vintage Vinyl / J-Card Sleeve Container */}
       <div className="relative bg-[#26150F] border-2 border-[#C88A3D]/40 rounded-sm p-4 shadow-[0_10px_25px_rgba(0,0,0,0.6)] group-hover:border-[#E5AD54] group-hover:shadow-[0_15px_35px_rgba(185,71,47,0.3)] transition-all overflow-hidden flex flex-col justify-between min-h-[340px]">
@@ -48,6 +59,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
           <img
             src={playlist.artwork}
             alt={playlist.title}
+            loading="lazy"
             className="relative z-10 w-full h-full object-cover filter contrast-105 saturate-95 group-hover:scale-105 transition-transform duration-500"
             onError={(e) => {
               (e.target as HTMLElement).style.display = 'none';
@@ -93,7 +105,8 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
             {/* Vintage Play Button */}
             <button
               onClick={(e) => onPlayPlaylist(playlist, e)}
-              className="px-3.5 py-1.5 bg-[#B9472F] hover:bg-[#C94B32] active:scale-95 text-[#F1D7A3] text-xs font-semibold tracking-wider uppercase border border-[#F1D7A3]/40 shadow-md transition-all flex items-center gap-1.5 rounded-xs"
+              aria-label={`Play all songs in ${playlist.title}`}
+              className="px-3.5 py-1.5 bg-[#B9472F] hover:bg-[#C94B32] active:scale-95 text-[#F1D7A3] text-xs font-semibold tracking-wider uppercase border border-[#F1D7A3]/40 shadow-md transition-all flex items-center gap-1.5 rounded-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5AD54]"
               title={`Play ${playlist.title}`}
             >
               <Play className="w-3 h-3 fill-[#F1D7A3]" />
