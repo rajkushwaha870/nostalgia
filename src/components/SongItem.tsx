@@ -112,7 +112,9 @@ export const SongItem: React.FC<SongItemProps> = ({ song, index, onPlaySong }) =
       {/* RIGHT: Duration / Year & Favorite Button */}
       <div className="flex items-center space-x-4 shrink-0 pl-2">
         <span className="font-mono text-xs text-[#E5AD54]/80">
-          {isCurrentTrack && duration > 0 ? formatDuration(duration) : (song.year ? song.year.toString() : 'YouTube')}
+          {isCurrentTrack && duration > 0
+            ? formatDuration(duration)
+            : (song.duration || (song.year ? song.year.toString() : '03:45'))}
         </span>
 
         {/* Favourite Heart Toggle */}

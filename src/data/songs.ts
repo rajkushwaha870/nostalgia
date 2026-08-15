@@ -7,6 +7,7 @@ export interface Song {
   youtubeId: string;
   category: string;
   year?: number;
+  duration?: string;
   playlistIds: string[];
 }
 
@@ -17,7 +18,7 @@ export const songs: Song[] = [
     artist: "Lata Mangeshkar",
     album: "Woh Kaun Thi?",
     artwork: "/images/song-1.svg",
-    youtubeId: "jfKfPfyJRdk", // Replace with your YouTube Video ID
+    youtubeId: "qC5Kee24Z00",
     category: "bollywood-love",
     year: 1964,
     playlistIds: ["bollywood-love", "evening-chai", "sad-memories"]
@@ -28,7 +29,7 @@ export const songs: Song[] = [
     artist: "Lata Mangeshkar",
     album: "Anpadh",
     artwork: "/images/song-2.svg",
-    youtubeId: "5qap5aO4i9A", // Replace with your YouTube Video ID
+    youtubeId: "kYJv1c8_8-0",
     category: "bollywood-love",
     year: 1962,
     playlistIds: ["bollywood-love"]
@@ -39,7 +40,7 @@ export const songs: Song[] = [
     artist: "Kishore Kumar",
     album: "Blackmail",
     artwork: "/images/song-3.svg",
-    youtubeId: "2g811Eo7K8U", // Replace with your YouTube Video ID
+    youtubeId: "AMuRRXPvw-U",
     category: "70s",
     year: 1973,
     playlistIds: ["bollywood-love", "evening-chai", "roadside-radio"]
@@ -50,7 +51,7 @@ export const songs: Song[] = [
     artist: "Mohammed Rafi",
     album: "Hum Dono",
     artwork: "/images/song-4.svg",
-    youtubeId: "3JZ_D3ELwOQ", // Replace with your YouTube Video ID
+    youtubeId: "3JZ_D3ELwOQ",
     category: "60s",
     year: 1961,
     playlistIds: ["bollywood-love", "evening-chai", "roadside-radio"]
@@ -61,7 +62,7 @@ export const songs: Song[] = [
     artist: "Udit Narayan & Sadhana Sargam",
     album: "Jo Jeeta Wohi Sikandar",
     artwork: "/images/song-1.svg",
-    youtubeId: "dQw4w9WgXcQ", // Replace with your YouTube Video ID
+    youtubeId: "9w9U0f2o46E",
     category: "90s",
     year: 1992,
     playlistIds: ["90s-memories", "bollywood-love"]
@@ -72,7 +73,7 @@ export const songs: Song[] = [
     artist: "Kumar Sanu & Lata Mangeshkar",
     album: "Dilwale Dulhania Le Jayenge",
     artwork: "/images/song-2.svg",
-    youtubeId: "kJQP7kiw5Fk", // Replace with your YouTube Video ID
+    youtubeId: "5S91i6WnU9k",
     category: "90s",
     year: 1995,
     playlistIds: ["90s-memories", "bollywood-love"]
@@ -83,7 +84,7 @@ export const songs: Song[] = [
     artist: "Kishore Kumar",
     album: "Manzil",
     artwork: "/images/song-3.svg",
-    youtubeId: "OPf0YbXqDm0", // Replace with your YouTube Video ID
+    youtubeId: "OqJ522t5U-E",
     category: "MONSOON",
     year: 1979,
     playlistIds: ["monsoon-memories"]
@@ -94,7 +95,7 @@ export const songs: Song[] = [
     artist: "Kumar Sanu",
     album: "1942: A Love Story",
     artwork: "/images/song-4.svg",
-    youtubeId: "hT_nvWreIhg", // Replace with your YouTube Video ID
+    youtubeId: "9bZkp7q19f0",
     category: "90s",
     year: 1994,
     playlistIds: ["90s-memories", "bollywood-love"]
@@ -105,7 +106,7 @@ export const songs: Song[] = [
     artist: "Kishore Kumar & Lata Mangeshkar",
     album: "Aandhi",
     artwork: "/images/song-1.svg",
-    youtubeId: "09R8_2nJtjg", // Replace with your YouTube Video ID
+    youtubeId: "09R8_2nJtjg",
     category: "70s",
     year: 1975,
     playlistIds: ["evening-chai", "sad-memories"]
@@ -116,7 +117,7 @@ export const songs: Song[] = [
     artist: "Asha Bhosle & Mohammed Rafi",
     album: "Yaadon Ki Baaraat",
     artwork: "/images/song-2.svg",
-    youtubeId: "9bZkp7q19f0", // Replace with your YouTube Video ID
+    youtubeId: "9bZkp7q19f0",
     category: "70s",
     year: 1973,
     playlistIds: ["bollywood-love", "evening-chai", "roadside-radio"]
@@ -127,9 +128,10 @@ export const songs: Song[] = [
     artist: "L. Vaidyanathan",
     album: "Malgudi Days",
     artwork: "/images/song-3.svg",
-    youtubeId: "fJ9rUzIMcZQ", // Replace with your YouTube Video ID
+    youtubeId: "fJ9rUzIMcZQ",
     category: "CHILDHOOD",
     year: 1987,
+    duration: "02:45",
     playlistIds: ["80s-classics", "childhood"]
   },
   {
@@ -138,9 +140,10 @@ export const songs: Song[] = [
     artist: "Mukesh",
     album: "Kabhie Kabhie",
     artwork: "/images/song-4.svg",
-    youtubeId: "dQw4w9WgXcQ", // Replace with your YouTube Video ID
+    youtubeId: "8mP5XnS0CIs",
     category: "70s",
     year: 1976,
+    duration: "04:58",
     playlistIds: ["bollywood-love", "evening-chai", "sad-memories"]
   },
   {
@@ -149,9 +152,10 @@ export const songs: Song[] = [
     artist: "Kishore Kumar & Lata Mangeshkar",
     album: "Ajnabee",
     artwork: "/images/song-1.svg",
-    youtubeId: "jfKfPfyJRdk", // Replace with your YouTube Video ID
+    youtubeId: "sU14PjH64u8",
     category: "MONSOON",
     year: 1974,
+    duration: "04:05",
     playlistIds: ["monsoon-memories"]
   },
   {
@@ -160,9 +164,10 @@ export const songs: Song[] = [
     artist: "Kishore Kumar",
     album: "Parichay",
     artwork: "/images/song-2.svg",
-    youtubeId: "2g811Eo7K8U", // Replace with your YouTube Video ID
+    youtubeId: "AMuRRXPvw-U",
     category: "70s",
     year: 1972,
+    duration: "04:40",
     playlistIds: ["evening-chai", "roadside-radio"]
   },
   {
@@ -171,9 +176,10 @@ export const songs: Song[] = [
     artist: "Pankaj Udhas",
     album: "Naam",
     artwork: "/images/song-3.svg",
-    youtubeId: "5qap5aO4i9A", // Replace with your YouTube Video ID
+    youtubeId: "kYJv1c8_8-0",
     category: "80s",
     year: 1986,
+    duration: "05:48",
     playlistIds: ["80s-classics", "sad-memories"]
   },
   {
@@ -182,9 +188,11 @@ export const songs: Song[] = [
     artist: "Gauri, Gurpreet & Vanita",
     album: "Masoom",
     artwork: "/images/song-4.svg",
-    youtubeId: "dQw4w9WgXcQ", // Replace with your YouTube Video ID
+    youtubeId: "dQw4w9WgXcQ",
     category: "CHILDHOOD",
     year: 1983,
+    duration: "03:55",
     playlistIds: ["80s-classics", "childhood"]
   }
 ];
+

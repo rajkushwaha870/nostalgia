@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { songs } from '../data/songs';
 import type { Song } from '../data/songs';
-import { playlists } from '../data/playlists';
 
 declare global {
   interface Window {
@@ -9,6 +8,8 @@ declare global {
     YT?: any;
   }
 }
+
+export const YOUTUBE_80S_PLAYLIST_ID = 'PLafSq5UblCNWzrBiEOwBeIdoU8AFXfTqp';
 
 export type RepeatMode = 'off' | 'one';
 
@@ -18,7 +19,6 @@ interface MusicPlayerContextType {
   currentQueue: Song[];
   currentQueueIndex: number;
   activePlaylistId: string | null;
-  activeYoutubePlaylistId: string | null;
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -30,8 +30,8 @@ interface MusicPlayerContextType {
   errorMessage: string | null;
   togglePlay: () => void;
   playSong: (index?: number) => void;
-  playQueue: (queue: Song[], startIndex?: number, playlistId?: string, youtubePlaylistId?: string) => void;
-  playSongInQueue: (song: Song, queue?: Song[], playlistId?: string, youtubePlaylistId?: string) => void;
+  playQueue: (queue: Song[], startIndex?: number, playlistId?: string) => void;
+  playSongInQueue: (song: Song, queue?: Song[], playlistId?: string) => void;
   pause: () => void;
   nextSong: () => void;
   prevSong: () => void;
@@ -48,36 +48,30 @@ interface MusicPlayerContextType {
   clearError: () => void;
   isFavorite: (songId: number) => boolean;
   isFavourite: (songId: number) => boolean;
+  testYouTubePlayback: () => void;
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_FAVS_KEY = 'nostalgia_favourites';
 
-const cleanYtTitle = (rawTitle: string, rawAuthor: string) => {
-  let title = rawTitle || "80s Classic";
-  let artist = rawAuthor || "80s Artist";
-
-  if (title.includes(' - ')) {
-    const parts = title.split(' - ');
-    artist = parts[0].trim();
-    title = parts.slice(1).join(' - ').trim();
+// Helper to generate a stable positive number ID from a string
+const generateNumericId = (str: string): number => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
   }
-
-  title = title
-    .replace(/\s*[\(\[](Official Video|Official Music Video|Official Audio|HD|HQ|Remastered|Video|Audio|4K|Lyrics)[\)\]]/gi, '')
-    .trim();
-
-  return { title, artist };
+  return Math.abs(hash) || 9999;
 };
 
 export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentQueue, setCurrentQueue] = useState<Song[]>(songs);
   const [currentQueueIndex, setCurrentQueueIndex] = useState<number>(0);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
-  const [activeYoutubePlaylistId, setActiveYoutubePlaylistId] = useState<string | null>(null);
-  const [ytSongInfo, setYtSongInfo] = useState<Song | null>(null);
 
+  const [currentSong, setCurrentSong] = useState<Song>(() => songs[0]);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
@@ -97,19 +91,33 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   });
 
-  const currentSong = (activeYoutubePlaylistId && ytSongInfo)
-    ? ytSongInfo
-    : (currentQueue[currentQueueIndex] || songs[0]);
   const currentIndex = currentQueueIndex;
 
-  // Single YouTube Player instance ref
+  // Persistent YouTube Player instance ref & readiness flags
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const ytPlayerRef = useRef<any>(null);
   const isPlayerReadyRef = useRef<boolean>(false);
-  const pendingPlayRef = useRef<boolean>(false);
-  const pendingPlaylistRef = useRef<{ list: string; index: number } | null>(null);
-  const activeYoutubePlaylistIdRef = useRef<string | null>(null);
+  const isInitializingRef = useRef<boolean>(false);
 
-  // Keep refs of values needed in event handlers to avoid stale closures
+  // Playback mode ref (YouTube Playlist mode vs individual queue item mode)
+  const isYouTubePlaylistModeRef = useRef<boolean>(false);
+
+  // Pending play actions before player is fully ready
+  const pendingActionRef = useRef<{
+    type: 'playlist' | 'video' | 'play';
+    playlistId?: string;
+    startIndex?: number;
+    videoId?: string;
+  } | null>(null);
+
+  // Error recovery & skipping tracking refs
+  const skipCountRef = useRef<number>(0);
+  const failedVideoIdsRef = useRef<Set<string>>(new Set());
+  const isSkippingRef = useRef<boolean>(false);
+
+  // Synchronized refs to prevent stale closures
+  const currentSongRef = useRef(currentSong);
+  currentSongRef.current = currentSong;
   const currentQueueRef = useRef(currentQueue);
   currentQueueRef.current = currentQueue;
   const currentQueueIndexRef = useRef(currentQueueIndex);
@@ -120,40 +128,103 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   repeatModeRef.current = repeatMode;
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
+  const isMutedRef = useRef(isMuted);
+  isMutedRef.current = isMuted;
 
-  const syncYtVideoData = useCallback((player: any) => {
-    if (!player || typeof player.getVideoData !== 'function') return;
-    const videoData = player.getVideoData();
-    if (videoData && videoData.video_id) {
-      const { title, artist } = cleanYtTitle(videoData.title, videoData.author);
-      const ytIndex = typeof player.getPlaylistIndex === 'function' ? player.getPlaylistIndex() : 0;
-      
-      setYtSongInfo({
-        id: 900000 + (ytIndex >= 0 ? ytIndex : 0),
-        title,
-        artist,
-        album: "80s Classics",
-        artwork: `https://i.ytimg.com/vi/${videoData.video_id}/hqdefault.jpg`,
-        youtubeId: videoData.video_id,
-        category: "80s",
-        year: 1980,
-        playlistIds: ["80s-classics"]
-      });
+  // Updates current song metadata from the active YouTube Player instance
+  const syncTrackFromPlayer = useCallback((player: any) => {
+    if (!player) return;
 
-      if (ytIndex >= 0) {
-        setCurrentQueueIndex(ytIndex);
+    try {
+      let videoData: any = null;
+      if (typeof player.getVideoData === 'function') {
+        videoData = player.getVideoData();
       }
+
+      const videoId = videoData?.video_id || '';
+      const rawTitle = videoData?.title || '';
+      const rawAuthor = videoData?.author || '';
+
+      // Check for duration
+      let dur = 0;
+      if (typeof player.getDuration === 'function') {
+        const d = player.getDuration();
+        if (typeof d === 'number' && !isNaN(d) && d > 0) {
+          dur = d;
+          setDuration(d);
+        }
+      }
+
+      // If we find a matching song in our local dataset, preserve rich metadata
+      const matchedSong = videoId
+        ? (currentQueueRef.current.find((s) => s.youtubeId === videoId) ||
+           songs.find((s) => s.youtubeId === videoId))
+        : null;
+
+      if (matchedSong) {
+        const queueIdx = currentQueueRef.current.findIndex((s) => s.id === matchedSong.id);
+        if (queueIdx !== -1) {
+          setCurrentQueueIndex(queueIdx);
+        }
+        setCurrentSong(matchedSong);
+      } else if (rawTitle || videoId) {
+        // Dynamic song from YouTube playlist
+        const dynamicSong: Song = {
+          id: generateNumericId(videoId || rawTitle),
+          title: rawTitle || '80s Classic Melody',
+          artist: rawAuthor || 'Nostalgia Collection',
+          album: '80s Classics',
+          artwork: videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '/hero-bg.png',
+          youtubeId: videoId,
+          category: '80s',
+          duration: dur > 0 ? `${Math.floor(dur / 60)}:${(Math.floor(dur % 60)).toString().padStart(2, '0')}` : undefined,
+          playlistIds: ['80s-classics'],
+        };
+        setCurrentSong(dynamicSong);
+      }
+    } catch (err) {
+      console.warn('Error syncing track metadata from player:', err);
     }
   }, []);
 
-  // Next song handler definition
+  // Next song definition
   const nextSong = useCallback(() => {
-    if (activeYoutubePlaylistIdRef.current && ytPlayerRef.current && isPlayerReadyRef.current) {
-      ytPlayerRef.current.nextVideo();
-      setIsPlaying(true);
-      return;
+    const player = ytPlayerRef.current;
+    const isReady = isPlayerReadyRef.current;
+
+    // Reset single skip debounce flag
+    isSkippingRef.current = false;
+
+    if (isYouTubePlaylistModeRef.current && player && isReady) {
+      try {
+        if (isShuffleRef.current && typeof player.getPlaylist === 'function') {
+          const pl = player.getPlaylist();
+          if (Array.isArray(pl) && pl.length > 1) {
+            const curIdx = typeof player.getPlaylistIndex === 'function' ? player.getPlaylistIndex() : 0;
+            let randIdx = curIdx;
+            do {
+              randIdx = Math.floor(Math.random() * pl.length);
+            } while (randIdx === curIdx);
+            player.playVideoAt(randIdx);
+            setIsPlaying(true);
+            setErrorMessage(null);
+            return;
+          }
+        }
+        if (typeof player.nextVideo === 'function') {
+          player.nextVideo();
+          setIsPlaying(true);
+          setErrorMessage(null);
+          return;
+        }
+      } catch (err) {
+        console.warn('Error calling nextVideo on playlist:', err);
+      }
     }
 
+    // Standard Queue next
     const queue = currentQueueRef.current;
     const index = currentQueueIndexRef.current;
     const shuffle = isShuffleRef.current;
@@ -168,29 +239,68 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       nextIdx = (index + 1) % queue.length;
     }
 
-    setCurrentQueueIndex(nextIdx);
-    setIsPlaying(true);
+    const nextTrack = queue[nextIdx];
+    if (nextTrack) {
+      setCurrentQueueIndex(nextIdx);
+      setCurrentSong(nextTrack);
+      setCurrentTime(0);
+      setIsPlaying(true);
+      setErrorMessage(null);
+
+      if (player && isReady && typeof player.loadVideoById === 'function') {
+        player.loadVideoById(nextTrack.youtubeId);
+      } else {
+        pendingActionRef.current = { type: 'video', videoId: nextTrack.youtubeId };
+      }
+    }
   }, []);
 
   const nextSongRef = useRef(nextSong);
   nextSongRef.current = nextSong;
 
-  // Previous song handler definition
+  // Previous song definition
   const prevSong = useCallback(() => {
-    if (ytPlayerRef.current && isPlayerReadyRef.current) {
-      const curTime = ytPlayerRef.current.getCurrentTime ? ytPlayerRef.current.getCurrentTime() : 0;
-      if (curTime > 3) {
-        ytPlayerRef.current.seekTo(0, true);
+    const player = ytPlayerRef.current;
+    const isReady = isPlayerReadyRef.current;
+
+    // If past 3 seconds, restart current track
+    if (player && isReady && typeof player.getCurrentTime === 'function') {
+      const curTime = player.getCurrentTime();
+      if (typeof curTime === 'number' && curTime > 3) {
+        player.seekTo(0, true);
         setCurrentTime(0);
-        return;
-      }
-      if (activeYoutubePlaylistIdRef.current) {
-        ytPlayerRef.current.previousVideo();
-        setIsPlaying(true);
         return;
       }
     }
 
+    if (isYouTubePlaylistModeRef.current && player && isReady) {
+      try {
+        if (isShuffleRef.current && typeof player.getPlaylist === 'function') {
+          const pl = player.getPlaylist();
+          if (Array.isArray(pl) && pl.length > 1) {
+            const curIdx = typeof player.getPlaylistIndex === 'function' ? player.getPlaylistIndex() : 0;
+            let randIdx = curIdx;
+            do {
+              randIdx = Math.floor(Math.random() * pl.length);
+            } while (randIdx === curIdx);
+            player.playVideoAt(randIdx);
+            setIsPlaying(true);
+            setErrorMessage(null);
+            return;
+          }
+        }
+        if (typeof player.previousVideo === 'function') {
+          player.previousVideo();
+          setIsPlaying(true);
+          setErrorMessage(null);
+          return;
+        }
+      } catch (err) {
+        console.warn('Error calling previousVideo on playlist:', err);
+      }
+    }
+
+    // Standard Queue previous
     const queue = currentQueueRef.current;
     const index = currentQueueIndexRef.current;
     const shuffle = isShuffleRef.current;
@@ -205,156 +315,238 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       prevIdx = (index - 1 + queue.length) % queue.length;
     }
 
-    setCurrentQueueIndex(prevIdx);
-    setIsPlaying(true);
+    const prevTrack = queue[prevIdx];
+    if (prevTrack) {
+      setCurrentQueueIndex(prevIdx);
+      setCurrentSong(prevTrack);
+      setCurrentTime(0);
+      setIsPlaying(true);
+      setErrorMessage(null);
+
+      if (player && isReady && typeof player.loadVideoById === 'function') {
+        player.loadVideoById(prevTrack.youtubeId);
+      } else {
+        pendingActionRef.current = { type: 'video', videoId: prevTrack.youtubeId };
+      }
+    }
   }, []);
 
-  // Initialize YouTube Iframe API & Player
+  // Core Playback Error Handler: Automatically skips unplayable videos (errors 150, 101, 100, 2, 5, etc.)
+  const handlePlaybackError = useCallback((errorCode: number) => {
+    const player = ytPlayerRef.current;
+
+    // Track failed video ID
+    let currentVidId = '';
+    try {
+      if (player && typeof player.getVideoData === 'function') {
+        currentVidId = player.getVideoData()?.video_id || '';
+      }
+    } catch (e) {}
+
+    if (currentVidId) {
+      failedVideoIdsRef.current.add(currentVidId);
+    }
+
+    // Determine total number of songs in playlist or queue
+    let totalItems = currentQueueRef.current.length || 1;
+    try {
+      if (player && typeof player.getPlaylist === 'function') {
+        const pl = player.getPlaylist();
+        if (Array.isArray(pl) && pl.length > 0) {
+          totalItems = pl.length;
+        }
+      }
+    } catch (e) {}
+
+    skipCountRef.current += 1;
+
+    console.warn(
+      `[Nostalgia Player] Video unavailable (error ${errorCode}). Auto-skipping to next playlist item (${skipCountRef.current}/${totalItems})...`
+    );
+
+    // If all videos in the playlist/queue have been attempted and failed
+    if (skipCountRef.current >= totalItems) {
+      console.error('[Nostalgia Player] All videos in the playlist are unavailable.');
+      setIsPlaying(false);
+      setErrorMessage('All songs in this playlist are currently unavailable for playback.');
+      skipCountRef.current = 0;
+      isSkippingRef.current = false;
+      return;
+    }
+
+    // Do NOT display error message for individual skipped tracks
+    // Immediately skip to the next item
+    if (isSkippingRef.current) return;
+    isSkippingRef.current = true;
+
+    setTimeout(() => {
+      isSkippingRef.current = false;
+      nextSongRef.current();
+    }, 150);
+  }, []);
+
+  // Initialize ONE persistent YouTube IFrame Player Instance
   useEffect(() => {
     let checkInterval: any = null;
 
-    const initPlayer = () => {
-      if (!window.YT || !window.YT.Player) return;
-
-      const container = document.getElementById('nostalgia-yt-iframe');
-      if (!container || ytPlayerRef.current) return;
-
-      ytPlayerRef.current = new window.YT.Player('nostalgia-yt-iframe', {
-        height: '1',
-        width: '1',
-        videoId: currentSong.youtubeId,
-        playerVars: {
-          autoplay: 0,
-          controls: 0,
-          disablekb: 1,
-          fs: 0,
-          rel: 0,
-          modestbranding: 1,
-          playsinline: 1,
-          origin: window.location.origin,
-        },
-        events: {
-          onReady: (event: any) => {
-            isPlayerReadyRef.current = true;
-            event.target.setVolume(isMuted ? 0 : volume);
-
-            if (pendingPlaylistRef.current) {
-              const { list, index } = pendingPlaylistRef.current;
-              pendingPlaylistRef.current = null;
-              event.target.loadPlaylist({
-                list: list,
-                listType: 'playlist',
-                index: index || 0
-              });
-            } else if (pendingPlayRef.current || isPlayingRef.current) {
-              pendingPlayRef.current = false;
-              event.target.playVideo();
-            }
-          },
-          onStateChange: (event: any) => {
-            // YT.PlayerState: PLAYING=1, PAUSED=2, ENDED=0, BUFFERING=3, CUED=5
-            if (event.data === 1) { // PLAYING
-              setIsPlaying(true);
-              setErrorMessage(null); // Clear toast
-              const dur = event.target.getDuration();
-              if (dur && typeof dur === 'number') {
-                setDuration(dur);
-              }
-              if (activeYoutubePlaylistIdRef.current) {
-                syncYtVideoData(event.target);
-              }
-            } else if (event.data === 2) { // PAUSED
-              setIsPlaying(false);
-            } else if (event.data === 3) { // BUFFERING
-              setErrorMessage('Tuning in...');
-              if (activeYoutubePlaylistIdRef.current) {
-                syncYtVideoData(event.target);
-              }
-            } else if (event.data === 0) { // ENDED
-              if (repeatModeRef.current === 'one') {
-                event.target.seekTo(0, true);
-                event.target.playVideo();
-              } else if (activeYoutubePlaylistIdRef.current) {
-                setTimeout(() => syncYtVideoData(event.target), 500);
-              } else {
-                nextSongRef.current();
-              }
-            }
-          },
-          onError: (event: any) => {
-            console.warn('YouTube Player error code:', event.data);
-            if (activeYoutubePlaylistIdRef.current) {
-              console.log('Video unavailable in YouTube playlist. Gracefully skipping to next item...');
-              setErrorMessage('Skipping unavailable track...');
-              if (event.target && typeof event.target.nextVideo === 'function') {
-                event.target.nextVideo();
-              }
-            } else {
-              setIsPlaying(false);
-              setErrorMessage("This memory couldn't be played.");
-            }
-          },
-        },
-      });
-    };
-
-    if (window.YT && window.YT.Player) {
-      initPlayer();
-    } else {
-      const existingScript = document.getElementById('yt-iframe-api-script');
-      if (!existingScript) {
-        const script = document.createElement('script');
-        script.id = 'yt-iframe-api-script';
-        script.src = 'https://www.youtube.com/iframe_api';
-        document.body.appendChild(script);
+    const tryInitPlayer = () => {
+      // 1. YouTube IFrame API availability check
+      if (!window.YT || !window.YT.Player) {
+        return;
       }
 
-      window.onYouTubeIframeAPIReady = () => {
-        initPlayer();
-      };
+      // 2. DOM Container presence check
+      const container = containerRef.current || document.getElementById('nostalgia-yt-iframe');
+      if (!container) {
+        return;
+      }
 
-      checkInterval = setInterval(() => {
-        if (window.YT && window.YT.Player && !ytPlayerRef.current) {
-          initPlayer();
-          clearInterval(checkInterval);
-        }
-      }, 300);
+      // 3. Prevent duplicate creation
+      if (ytPlayerRef.current || isInitializingRef.current) {
+        return;
+      }
+      isInitializingRef.current = true;
+
+      try {
+        ytPlayerRef.current = new window.YT.Player(container, {
+          height: '240',
+          width: '320',
+          playerVars: {
+            listType: 'playlist',
+            list: YOUTUBE_80S_PLAYLIST_ID,
+            autoplay: 0,
+            controls: 0,
+            disablekb: 1,
+            fs: 0,
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            enablejsapi: 1,
+            origin: window.location.origin,
+          },
+          events: {
+            onReady: (event: any) => {
+              isPlayerReadyRef.current = true;
+              console.log('YT PLAYER ONREADY');
+
+              try {
+                if (isMutedRef.current) {
+                  event.target.mute();
+                } else {
+                  event.target.unMute();
+                  event.target.setVolume(volumeRef.current);
+                }
+              } catch (e) {
+                console.warn('Error setting volume onReady:', e);
+              }
+
+              // Handle pending action if requested before player became ready
+              if (pendingActionRef.current) {
+                const action = pendingActionRef.current;
+                pendingActionRef.current = null;
+
+                if (action.type === 'playlist') {
+                  isYouTubePlaylistModeRef.current = true;
+                  event.target.loadPlaylist({
+                    list: action.playlistId || YOUTUBE_80S_PLAYLIST_ID,
+                    listType: 'playlist',
+                    index: action.startIndex || 0,
+                  });
+                  event.target.playVideo();
+                } else if (action.type === 'video' && action.videoId) {
+                  isYouTubePlaylistModeRef.current = false;
+                  event.target.loadVideoById(action.videoId);
+                  event.target.playVideo();
+                } else if (action.type === 'play') {
+                  event.target.playVideo();
+                }
+              }
+            },
+            onStateChange: (event: any) => {
+              const state = event.data;
+
+              if (state === 1) {
+                // PLAYING
+                setIsPlaying(true);
+                setErrorMessage(null);
+                skipCountRef.current = 0; // Reset skip count on successful playback
+                isSkippingRef.current = false;
+
+                syncTrackFromPlayer(event.target);
+              } else if (state === 2) {
+                // PAUSED
+                setIsPlaying(false);
+              } else if (state === 0) {
+                // ENDED
+                setIsPlaying(false);
+                if (repeatModeRef.current === 'one') {
+                  try {
+                    event.target.seekTo(0, true);
+                    event.target.playVideo();
+                  } catch (e) {}
+                } else {
+                  nextSongRef.current();
+                }
+              }
+            },
+            onError: (event: any) => {
+              const code = event.data;
+              handlePlaybackError(code);
+            },
+          },
+        });
+      } catch (err) {
+        console.error('Failed to create persistent YT.Player instance:', err);
+        isInitializingRef.current = false;
+      }
+    };
+
+    // Load YouTube IFrame API script if not already present
+    if (!window.YT || !window.YT.Player) {
+      if (!document.getElementById('yt-iframe-api-script')) {
+        const tag = document.createElement('script');
+        tag.id = 'yt-iframe-api-script';
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+      }
+
+      const prevHandler = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        if (prevHandler) prevHandler();
+        tryInitPlayer();
+      };
     }
+
+    tryInitPlayer();
+
+    checkInterval = setInterval(() => {
+      if (ytPlayerRef.current) {
+        clearInterval(checkInterval);
+        return;
+      }
+      tryInitPlayer();
+    }, 200);
 
     return () => {
-      if (checkInterval) clearInterval(checkInterval);
-    };
-  }, [currentSong.youtubeId, isMuted, volume, syncYtVideoData]);
-
-  // Update YouTube Video when currentSong changes (for non-YouTube playlist mode)
-  useEffect(() => {
-    if (!currentSong || activeYoutubePlaylistId) return;
-    setCurrentTime(0);
-
-    if (ytPlayerRef.current && isPlayerReadyRef.current) {
-      if (isPlaying) {
-        setErrorMessage('Tuning in...');
-        ytPlayerRef.current.loadVideoById(currentSong.youtubeId);
-      } else {
-        setErrorMessage(null);
-        ytPlayerRef.current.cueVideoById(currentSong.youtubeId);
+      if (checkInterval) {
+        clearInterval(checkInterval);
       }
-    }
-  }, [currentQueueIndex, currentSong, activeYoutubePlaylistId, isPlaying]);
+    };
+  }, [handlePlaybackError, syncTrackFromPlayer]);
 
   // Volume & Mute Sync with YouTube Player
   useEffect(() => {
     if (ytPlayerRef.current && isPlayerReadyRef.current) {
       if (isMuted) {
-        ytPlayerRef.current.mute();
+        if (typeof ytPlayerRef.current.mute === 'function') ytPlayerRef.current.mute();
       } else {
-        ytPlayerRef.current.unMute();
-        ytPlayerRef.current.setVolume(volume);
+        if (typeof ytPlayerRef.current.unMute === 'function') ytPlayerRef.current.unMute();
+        if (typeof ytPlayerRef.current.setVolume === 'function') ytPlayerRef.current.setVolume(volume);
       }
     }
   }, [volume, isMuted]);
 
-  // Time Updates while playing
+  // Time & Duration polling while playing
   useEffect(() => {
     let interval: any = null;
 
@@ -369,9 +561,6 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
           if (typeof dur === 'number' && !isNaN(dur) && dur > 0) {
             setDuration(dur);
           }
-          if (activeYoutubePlaylistIdRef.current) {
-            syncYtVideoData(ytPlayerRef.current);
-          }
         }
       }, 250);
     }
@@ -379,121 +568,131 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPlaying, syncYtVideoData]);
+  }, [isPlaying]);
 
   // Controls Implementation
   const togglePlay = useCallback(() => {
-    if (!ytPlayerRef.current || !isPlayerReadyRef.current) {
-      pendingPlayRef.current = !isPlaying;
+    const player = ytPlayerRef.current;
+    const isReady = isPlayerReadyRef.current;
+
+    if (!player || !isReady) {
+      pendingActionRef.current = { type: 'play' };
       setIsPlaying((prev) => !prev);
       return;
     }
 
-    if (isPlaying) {
-      ytPlayerRef.current.pauseVideo();
+    if (isPlayingRef.current) {
+      if (typeof player.pauseVideo === 'function') player.pauseVideo();
+      setIsPlaying(false);
     } else {
-      setErrorMessage('Tuning in...');
-      ytPlayerRef.current.playVideo();
+      if (typeof player.playVideo === 'function') player.playVideo();
+      setIsPlaying(true);
     }
-  }, [isPlaying]);
+  }, []);
 
   const pause = useCallback(() => {
-    if (ytPlayerRef.current && isPlayerReadyRef.current) {
-      ytPlayerRef.current.pauseVideo();
-    } else {
-      setIsPlaying(false);
+    const player = ytPlayerRef.current;
+    if (player && isPlayerReadyRef.current && typeof player.pauseVideo === 'function') {
+      player.pauseVideo();
     }
+    setIsPlaying(false);
   }, []);
 
   const playSong = useCallback((index?: number) => {
-    const newIndex = index !== undefined ? index : currentQueueIndex;
-    if (newIndex !== currentQueueIndex) {
-      setCurrentQueueIndex(newIndex);
-    }
+    const queue = currentQueueRef.current;
+    if (queue.length === 0) return;
+    const newIndex = index !== undefined ? Math.max(0, Math.min(index, queue.length - 1)) : currentQueueIndexRef.current;
+    const targetSong = queue[newIndex];
+    if (!targetSong) return;
+
+    isYouTubePlaylistModeRef.current = false;
+    setCurrentQueueIndex(newIndex);
+    setCurrentSong(targetSong);
+    setCurrentTime(0);
     setIsPlaying(true);
-    if (ytPlayerRef.current && isPlayerReadyRef.current) {
-      setErrorMessage('Tuning in...');
-      if (activeYoutubePlaylistIdRef.current) {
-        if (typeof ytPlayerRef.current.playVideoAt === 'function') {
-          ytPlayerRef.current.playVideoAt(newIndex);
-        }
-      } else {
-        const targetSong = currentQueue[newIndex];
-        if (targetSong) {
-          ytPlayerRef.current.loadVideoById(targetSong.youtubeId);
-        }
-      }
+    setErrorMessage(null);
+    skipCountRef.current = 0;
+
+    const player = ytPlayerRef.current;
+    if (player && isPlayerReadyRef.current && typeof player.loadVideoById === 'function') {
+      player.loadVideoById(targetSong.youtubeId);
+      player.playVideo();
     } else {
-      pendingPlayRef.current = true;
-    }
-  }, [currentQueueIndex, currentQueue]);
-
-  const playQueue = useCallback((queue: Song[], startIndex = 0, playlistId?: string, youtubePlaylistId?: string) => {
-    const targetPlaylist = playlists.find((p) => p.id === playlistId);
-    const ytListId = youtubePlaylistId || targetPlaylist?.youtubePlaylistId;
-
-    if (queue.length === 0 && !ytListId) return;
-
-    setCurrentQueue(queue);
-    setCurrentQueueIndex(startIndex);
-    setActivePlaylistId(playlistId || null);
-    setActiveYoutubePlaylistId(ytListId || null);
-    activeYoutubePlaylistIdRef.current = ytListId || null;
-    setIsPlaying(true);
-
-    if (ytListId) {
-      if (ytPlayerRef.current && isPlayerReadyRef.current) {
-        setErrorMessage('Tuning in...');
-        ytPlayerRef.current.loadPlaylist({
-          list: ytListId,
-          listType: 'playlist',
-          index: startIndex,
-        });
-      } else {
-        pendingPlaylistRef.current = { list: ytListId, index: startIndex };
-      }
-    } else {
-      setYtSongInfo(null);
-      const targetSong = queue[startIndex];
-      if (targetSong && ytPlayerRef.current && isPlayerReadyRef.current) {
-        setErrorMessage('Tuning in...');
-        ytPlayerRef.current.loadVideoById(targetSong.youtubeId);
-      } else {
-        pendingPlayRef.current = true;
-      }
+      pendingActionRef.current = { type: 'video', videoId: targetSong.youtubeId };
     }
   }, []);
 
-  const playSongInQueue = useCallback((song: Song, queue?: Song[], playlistId?: string, youtubePlaylistId?: string) => {
-    const targetPlaylist = playlists.find((p) => p.id === playlistId);
-    const ytListId = youtubePlaylistId || targetPlaylist?.youtubePlaylistId;
-    const targetQueue = queue && queue.length > 0 ? queue : currentQueue;
-    const songIdx = targetQueue.findIndex((s) => s.id === song.id);
-    const idxToPlay = songIdx !== -1 ? songIdx : 0;
+  const playQueue = useCallback((queue: Song[], startIndex = 0, playlistId?: string) => {
+    const is80sPlaylist = playlistId === '80s-classics';
+    setActivePlaylistId(playlistId || null);
+    skipCountRef.current = 0;
+    setErrorMessage(null);
+    setCurrentTime(0);
+    setIsPlaying(true);
 
-    if (ytListId) {
-      playQueue(targetQueue, idxToPlay, playlistId, ytListId);
+    if (is80sPlaylist) {
+      isYouTubePlaylistModeRef.current = true;
+      if (queue && queue.length > 0) {
+        setCurrentQueue(queue);
+      }
+      const validIndex = Math.max(0, Math.min(startIndex, (queue?.length || 1) - 1));
+      setCurrentQueueIndex(validIndex);
+      if (queue && queue[validIndex]) {
+        setCurrentSong(queue[validIndex]);
+      }
+
+      const player = ytPlayerRef.current;
+      if (player && isPlayerReadyRef.current && typeof player.loadPlaylist === 'function') {
+        player.loadPlaylist({
+          list: YOUTUBE_80S_PLAYLIST_ID,
+          listType: 'playlist',
+          index: validIndex,
+        });
+        player.playVideo();
+      } else {
+        pendingActionRef.current = {
+          type: 'playlist',
+          playlistId: YOUTUBE_80S_PLAYLIST_ID,
+          startIndex: validIndex,
+        };
+      }
       return;
     }
 
+    // Standard song queue
+    isYouTubePlaylistModeRef.current = false;
+    if (!queue || queue.length === 0) return;
+
+    const validIndex = Math.max(0, Math.min(startIndex, queue.length - 1));
+    const targetSong = queue[validIndex];
+    if (!targetSong) return;
+
+    setCurrentQueue(queue);
+    setCurrentQueueIndex(validIndex);
+    setCurrentSong(targetSong);
+
+    const player = ytPlayerRef.current;
+    if (player && isPlayerReadyRef.current && typeof player.loadVideoById === 'function') {
+      player.loadVideoById(targetSong.youtubeId);
+      player.playVideo();
+    } else {
+      pendingActionRef.current = { type: 'video', videoId: targetSong.youtubeId };
+    }
+  }, []);
+
+  const playSongInQueue = useCallback((song: Song, queue?: Song[], playlistId?: string) => {
+    if (!song) return;
+
+    const targetQueue = queue && queue.length > 0 ? queue : currentQueueRef.current;
+    const songIdx = targetQueue.findIndex((s) => s.id === song.id);
+    const idxToPlay = songIdx !== -1 ? songIdx : 0;
+
     if (queue && queue.length > 0) {
       setCurrentQueue(queue);
-      setActivePlaylistId(playlistId || null);
     }
 
-    setActiveYoutubePlaylistId(null);
-    activeYoutubePlaylistIdRef.current = null;
-    setYtSongInfo(null);
-    setCurrentQueueIndex(idxToPlay);
-    setIsPlaying(true);
-
-    if (ytPlayerRef.current && isPlayerReadyRef.current) {
-      setErrorMessage('Tuning in...');
-      ytPlayerRef.current.loadVideoById(song.youtubeId);
-    } else {
-      pendingPlayRef.current = true;
-    }
-  }, [currentQueue, playQueue]);
+    playQueue(targetQueue, idxToPlay, playlistId);
+  }, [playQueue]);
 
   const seek = useCallback((timeInSeconds: number) => {
     const clampedTime = Math.max(0, Math.min(timeInSeconds, duration || 100));
@@ -519,9 +718,9 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const nextMute = !prev;
       if (ytPlayerRef.current && isPlayerReadyRef.current) {
         if (nextMute) {
-          ytPlayerRef.current.mute();
+          if (typeof ytPlayerRef.current.mute === 'function') ytPlayerRef.current.mute();
         } else {
-          ytPlayerRef.current.unMute();
+          if (typeof ytPlayerRef.current.unMute === 'function') ytPlayerRef.current.unMute();
         }
       }
       return nextMute;
@@ -540,11 +739,11 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const toggleRepeat = useCallback(() => {
     setRepeatMode((prev) => {
-      const nextMode = prev === 'off' ? 'one' : 'off';
+      const nextVal = prev === 'off' ? 'one' : 'off';
       if (ytPlayerRef.current && isPlayerReadyRef.current && typeof ytPlayerRef.current.setLoop === 'function') {
-        ytPlayerRef.current.setLoop(nextMode !== 'off');
+        ytPlayerRef.current.setLoop(nextVal === 'one');
       }
-      return nextMode;
+      return nextVal;
     });
   }, []);
 
@@ -600,6 +799,11 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setErrorMessage(null);
   }, []);
 
+  const testYouTubePlayback = useCallback(() => {
+    console.log('[Nostalgia Player] Testing YouTube playlist playback for:', YOUTUBE_80S_PLAYLIST_ID);
+    playQueue(songs.filter((s) => s.playlistIds.includes('80s-classics')), 0, '80s-classics');
+  }, [playQueue]);
+
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -654,7 +858,6 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         currentQueue,
         currentQueueIndex,
         activePlaylistId,
-        activeYoutubePlaylistId,
         isPlaying,
         currentTime,
         duration,
@@ -684,24 +887,25 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         clearError,
         isFavorite,
         isFavourite: isFavorite,
+        testYouTubePlayback,
       }}
     >
       {children}
-      {/* Off-screen Youtube Player Iframe container */}
+
+      {/* Persistent Off-Screen YouTube Player Iframe Container */}
       <div
         id="youtube-player-container"
         style={{
           position: 'fixed',
-          bottom: 0,
-          right: 0,
-          width: '1px',
-          height: '1px',
-          opacity: 0.001,
+          top: '-9999px',
+          left: '-9999px',
+          width: '320px',
+          height: '240px',
           pointerEvents: 'none',
           zIndex: -9999,
         }}
       >
-        <div id="nostalgia-yt-iframe" />
+        <div ref={containerRef} id="nostalgia-yt-iframe" />
       </div>
     </MusicPlayerContext.Provider>
   );
@@ -714,4 +918,3 @@ export const useMusicPlayer = (): MusicPlayerContextType => {
   }
   return context;
 };
-

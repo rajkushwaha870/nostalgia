@@ -19,9 +19,10 @@ export default {
         }
       },
       fontFamily: {
-        display: ['"Yatra One"', '"Rozha One"', 'Georgia', 'serif'],
+        display: ['"Gajraj One"', '"Rozha One"', '"Yatra One"', 'serif'],
         serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-        sans: ['"Outfit"', 'sans-serif'],
+        sans: ['"Outfit"', '"Hind"', 'sans-serif'],
+        script: ['"Kaushan Script"', '"Yellowtail"', '"Satisfy"', 'cursive'],
       },
       animation: {
         'dust-float': 'dustFloat 20s infinite linear',

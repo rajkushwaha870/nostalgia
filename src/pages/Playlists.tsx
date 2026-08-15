@@ -74,13 +74,12 @@ export const Playlists: React.FC<PlaylistsProps> = ({ initialPlaylistId = null }
       .map((id: number) => songs.find((s: Song) => s.id === id))
       .filter((s): s is Song => s !== undefined);
 
-    playQueue(playlistSongs, 0, playlist.id, playlist.youtubePlaylistId);
+    playQueue(playlistSongs, 0, playlist.id);
   };
 
   // Handle Play single song in playlist
   const handlePlaySongInPlaylist = (song: Song, queue: Song[], playlistId?: string) => {
-    const targetPlaylist = playlists.find((p) => p.id === playlistId);
-    playSongInQueue(song, queue, playlistId, targetPlaylist?.youtubePlaylistId);
+    playSongInQueue(song, queue, playlistId);
   };
 
   return (
@@ -183,6 +182,7 @@ export const Playlists: React.FC<PlaylistsProps> = ({ initialPlaylistId = null }
                     onSelectPlaylist={(id) => setSelectedPlaylistId(id)}
                     onPlayPlaylist={(pl, e) => {
                       e.stopPropagation();
+                      setSelectedPlaylistId(pl.id);
                       handlePlayAll(pl);
                     }}
                     isPlayingThisPlaylist={isPlayingThis}
