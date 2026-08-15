@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <defs>
+    <radialGradient id="grad-song-3" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#1B3022" />
+      <stop offset="100%" stop-color="#0C1710" />
+    </radialGradient>
+  </defs>
+  <rect width="300" height="300" fill="url(#grad-song-3)" />
+  <circle cx="150" cy="150" r="120" fill="none" stroke="#F1D7A3" stroke-opacity="0.2" stroke-width="1.5" />
+  <circle cx="150" cy="150" r="90" fill="none" stroke="#F1D7A3" stroke-opacity="0.15" stroke-width="1" />
+  <circle cx="150" cy="150" r="60" fill="#140b07" stroke="#E5AD54" stroke-opacity="0.4" stroke-width="2" />
+  <circle cx="150" cy="150" r="18" fill="#B9472F" />
+  <circle cx="150" cy="150" r="5" fill="#F1D7A3" />
+  <text x="150" y="45" text-anchor="middle" fill="#F1D7A3" font-family="serif" font-size="16" font-weight="bold" letter-spacing="1">Pal Pal Dil Ke</text>
+  <text x="150" y="270" text-anchor="middle" fill="#E5AD54" font-family="sans-serif" font-size="12" letter-spacing="0.5">Kishore Kumar</text>
+</svg>

@@ -16,7 +16,7 @@ export const songs: Song[] = [
     title: "Lag Jaa Gale Se Phir",
     artist: "Lata Mangeshkar",
     album: "Woh Kaun Thi?",
-    artwork: "/images/song-1.jpg",
+    artwork: "/images/song-1.svg",
     youtubeId: "jfKfPfyJRdk", // Replace with your YouTube Video ID
     category: "bollywood-love",
     year: 1964,
@@ -27,7 +27,7 @@ export const songs: Song[] = [
     title: "Aap Ki Nazron Ne Samjha",
     artist: "Lata Mangeshkar",
     album: "Anpadh",
-    artwork: "/images/song-2.jpg",
+    artwork: "/images/song-2.svg",
     youtubeId: "5qap5aO4i9A", // Replace with your YouTube Video ID
     category: "bollywood-love",
     year: 1962,
@@ -38,7 +38,7 @@ export const songs: Song[] = [
     title: "Pal Pal Dil Ke Paas",
     artist: "Kishore Kumar",
     album: "Blackmail",
-    artwork: "/images/song-3.jpg",
+    artwork: "/images/song-3.svg",
     youtubeId: "2g811Eo7K8U", // Replace with your YouTube Video ID
     category: "70s",
     year: 1973,
@@ -49,7 +49,7 @@ export const songs: Song[] = [
     title: "Abhi Na Jao Chhod Kar",
     artist: "Mohammed Rafi",
     album: "Hum Dono",
-    artwork: "/images/song-4.jpg",
+    artwork: "/images/song-4.svg",
     youtubeId: "3JZ_D3ELwOQ", // Replace with your YouTube Video ID
     category: "60s",
     year: 1961,
@@ -60,7 +60,7 @@ export const songs: Song[] = [
     title: "Pehla Nasha",
     artist: "Udit Narayan & Sadhana Sargam",
     album: "Jo Jeeta Wohi Sikandar",
-    artwork: "/images/song-1.jpg",
+    artwork: "/images/song-1.svg",
     youtubeId: "dQw4w9WgXcQ", // Replace with your YouTube Video ID
     category: "90s",
     year: 1992,
@@ -71,7 +71,7 @@ export const songs: Song[] = [
     title: "Tujhe Dekha To",
     artist: "Kumar Sanu & Lata Mangeshkar",
     album: "Dilwale Dulhania Le Jayenge",
-    artwork: "/images/song-2.jpg",
+    artwork: "/images/song-2.svg",
     youtubeId: "kJQP7kiw5Fk", // Replace with your YouTube Video ID
     category: "90s",
     year: 1995,
@@ -82,7 +82,7 @@ export const songs: Song[] = [
     title: "Rimjhim Gire Sawan",
     artist: "Kishore Kumar",
     album: "Manzil",
-    artwork: "/images/song-3.jpg",
+    artwork: "/images/song-3.svg",
     youtubeId: "OPf0YbXqDm0", // Replace with your YouTube Video ID
     category: "MONSOON",
     year: 1979,
@@ -93,7 +93,7 @@ export const songs: Song[] = [
     title: "Ek Ladki Ko Dekha",
     artist: "Kumar Sanu",
     album: "1942: A Love Story",
-    artwork: "/images/song-4.jpg",
+    artwork: "/images/song-4.svg",
     youtubeId: "hT_nvWreIhg", // Replace with your YouTube Video ID
     category: "90s",
     year: 1994,
@@ -104,7 +104,7 @@ export const songs: Song[] = [
     title: "Tere Bina Zindagi Se",
     artist: "Kishore Kumar & Lata Mangeshkar",
     album: "Aandhi",
-    artwork: "/images/song-1.jpg",
+    artwork: "/images/song-1.svg",
     youtubeId: "09R8_2nJtjg", // Replace with your YouTube Video ID
     category: "70s",
     year: 1975,
@@ -115,7 +115,7 @@ export const songs: Song[] = [
     title: "Chura Liya Hai Tumne",
     artist: "Asha Bhosle & Mohammed Rafi",
     album: "Yaadon Ki Baaraat",
-    artwork: "/images/song-2.jpg",
+    artwork: "/images/song-2.svg",
     youtubeId: "9bZkp7q19f0", // Replace with your YouTube Video ID
     category: "70s",
     year: 1973,
@@ -126,7 +126,7 @@ export const songs: Song[] = [
     title: "Malgudi Days Theme",
     artist: "L. Vaidyanathan",
     album: "Malgudi Days",
-    artwork: "/images/song-3.jpg",
+    artwork: "/images/song-3.svg",
     youtubeId: "fJ9rUzIMcZQ", // Replace with your YouTube Video ID
     category: "CHILDHOOD",
     year: 1987,
@@ -137,7 +137,7 @@ export const songs: Song[] = [
     title: "Kabhie Kabhie Mere Dil Mein",
     artist: "Mukesh",
     album: "Kabhie Kabhie",
-    artwork: "/images/song-4.jpg",
+    artwork: "/images/song-4.svg",
     youtubeId: "dQw4w9WgXcQ", // Replace with your YouTube Video ID
     category: "70s",
     year: 1976,
@@ -148,7 +148,7 @@ export const songs: Song[] = [
     title: "Bheegi Bheegi Raaton Mein",
     artist: "Kishore Kumar & Lata Mangeshkar",
     album: "Ajnabee",
-    artwork: "/images/song-1.jpg",
+    artwork: "/images/song-1.svg",
     youtubeId: "jfKfPfyJRdk", // Replace with your YouTube Video ID
     category: "MONSOON",
     year: 1974,
@@ -159,7 +159,7 @@ export const songs: Song[] = [
     title: "Musafir Hoon Yaaro",
     artist: "Kishore Kumar",
     album: "Parichay",
-    artwork: "/images/song-2.jpg",
+    artwork: "/images/song-2.svg",
     youtubeId: "2g811Eo7K8U", // Replace with your YouTube Video ID
     category: "70s",
     year: 1972,
@@ -170,7 +170,7 @@ export const songs: Song[] = [
     title: "Chitthi Aai Hai",
     artist: "Pankaj Udhas",
     album: "Naam",
-    artwork: "/images/song-3.jpg",
+    artwork: "/images/song-3.svg",
     youtubeId: "5qap5aO4i9A", // Replace with your YouTube Video ID
     category: "80s",
     year: 1986,
@@ -181,7 +181,7 @@ export const songs: Song[] = [
     title: "Lakdi Ki Kathi",
     artist: "Gauri, Gurpreet & Vanita",
     album: "Masoom",
-    artwork: "/images/song-4.jpg",
+    artwork: "/images/song-4.svg",
     youtubeId: "dQw4w9WgXcQ", // Replace with your YouTube Video ID
     category: "CHILDHOOD",
     year: 1983,

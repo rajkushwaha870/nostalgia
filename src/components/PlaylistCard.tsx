@@ -62,7 +62,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
             loading="lazy"
             className="relative z-10 w-full h-full object-cover filter contrast-105 saturate-95 group-hover:scale-105 transition-transform duration-500"
             onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
+              (e.target as HTMLImageElement).src = '/hero-bg.png';
             }}
           />
 

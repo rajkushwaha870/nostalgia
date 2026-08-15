@@ -80,7 +80,7 @@ export const SongItem: React.FC<SongItemProps> = ({ song, index, onPlaySong }) =
               loading="lazy"
               className="w-full h-full object-cover"
               onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
+                (e.target as HTMLImageElement).src = '/hero-bg.png';
               }}
             />
           ) : (

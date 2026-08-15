@@ -44,7 +44,7 @@ export const PlaylistHeader: React.FC<PlaylistHeaderProps> = ({
               alt={playlist.title}
               className="w-full h-full object-cover filter contrast-105"
               onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
+                (e.target as HTMLImageElement).src = '/hero-bg.png';
               }}
             />
             <div className="absolute top-2 left-2 px-2 py-0.5 bg-[#B9472F] text-[#F1D7A3] text-[9px] font-mono tracking-widest uppercase border border-[#F1D7A3]/30">

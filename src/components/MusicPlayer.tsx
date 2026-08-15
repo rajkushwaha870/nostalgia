@@ -10,7 +10,6 @@ import {
   Volume1,
   VolumeX,
   ListMusic,
-  Disc,
   AlertCircle,
   X,
 } from 'lucide-react';
@@ -49,6 +48,20 @@ export const MusicPlayer: React.FC = () => {
 
   const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(false);
   const [artworkAnimate, setArtworkAnimate] = useState(false);
+
+  const fallbackArtwork = '/hero-bg.png';
+  const [artworkSrc, setArtworkSrc] = useState<string>(currentSong.artwork || fallbackArtwork);
+
+  // Synchronize artwork image whenever song changes
+  useEffect(() => {
+    setArtworkSrc(currentSong.artwork || fallbackArtwork);
+  }, [currentSong.id, currentSong.artwork]);
+
+  const handleArtworkError = () => {
+    if (artworkSrc !== fallbackArtwork) {
+      setArtworkSrc(fallbackArtwork);
+    }
+  };
 
   // Smooth slide & fade transition trigger when song changes (duration 350ms)
   useEffect(() => {
@@ -102,29 +115,20 @@ export const MusicPlayer: React.FC = () => {
               artworkAnimate ? 'opacity-0 translate-x-2' : 'opacity-100 translate-x-0'
             }`}
           >
-            {/* Small rounded album artwork */}
+            {/* Small circular album artwork */}
             <div className="relative group shrink-0">
               <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#24150F]/80 border border-[#F1D7A3]/20 shadow-md flex items-center justify-center overflow-hidden p-0.5">
-                {currentSong.artwork ? (
-                  <div className="relative w-full h-full rounded-full overflow-hidden flex items-center justify-center">
-                    <img
-                      src={currentSong.artwork}
-                      alt={currentSong.title}
-                      loading="lazy"
-                      className={`w-full h-full object-cover rounded-full ${isPlaying ? 'animate-spin' : ''}`}
-                      style={{ animationDuration: '10s' }}
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                    <div className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#B9472F] border border-[#F1D7A3]" />
-                  </div>
-                ) : (
-                  <div className="relative w-full h-full rounded-full bg-[#160c08] flex items-center justify-center">
-                    <Disc className={`w-5 h-5 sm:w-6 sm:h-6 text-[#E5AD54] transition-transform duration-1000 ${isPlaying ? 'animate-spin' : ''}`} />
-                    <div className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#B9472F] border border-[#F1D7A3]" />
-                  </div>
-                )}
+                <div className="relative w-full h-full rounded-full overflow-hidden flex items-center justify-center">
+                  <img
+                    src={artworkSrc}
+                    alt={currentSong.title || 'Album Artwork'}
+                    loading="lazy"
+                    className={`w-full h-full object-cover rounded-full ${isPlaying ? 'animate-spin' : ''}`}
+                    style={{ borderRadius: '50%', objectFit: 'cover', animationDuration: '10s' }}
+                    onError={handleArtworkError}
+                  />
+                  <div className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#B9472F] border border-[#F1D7A3]" />
+                </div>
               </div>
             </div>
 
