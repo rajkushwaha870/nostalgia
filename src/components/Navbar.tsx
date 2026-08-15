@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home as HomeIcon, Disc3, Heart, Info, Mail } from 'lucide-react';
+import { Home as HomeIcon, Heart, Info, Mail } from 'lucide-react';
 
 interface NavbarProps {
   activeTab?: string;
@@ -12,7 +12,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const navItems = [
     { label: 'HOME', icon: HomeIcon },
-    { label: 'PLAYLISTS', icon: Disc3 },
     { label: 'FAVOURITES', icon: Heart },
     { label: 'ABOUT', icon: Info },
     { label: 'CONTACT', icon: Mail },

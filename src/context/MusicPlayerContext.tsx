@@ -54,6 +54,32 @@ interface MusicPlayerContextType {
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_FAVS_KEY = 'nostalgia_favourites';
+const LOCAL_STORAGE_PLAYBACK_KEY = 'nostalgia_playback_state';
+
+interface SavedPlaybackState {
+  currentSong: Song;
+  currentQueue: Song[];
+  currentQueueIndex: number;
+  activePlaylistId: string | null;
+  currentTime: number;
+  duration: number;
+  isPlaying: boolean;
+  timestamp?: number;
+}
+
+const loadSavedPlaybackState = (): SavedPlaybackState | null => {
+  try {
+    const saved = localStorage.getItem(LOCAL_STORAGE_PLAYBACK_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    if (parsed && typeof parsed === 'object') {
+      return parsed;
+    }
+  } catch (err) {
+    console.warn('Failed to load playback state from localStorage:', err);
+  }
+  return null;
+};
 
 // Helper to generate a stable positive number ID from a string
 const generateNumericId = (str: string): number => {
@@ -67,14 +93,43 @@ const generateNumericId = (str: string): number => {
 };
 
 export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentQueue, setCurrentQueue] = useState<Song[]>(songs);
-  const [currentQueueIndex, setCurrentQueueIndex] = useState<number>(0);
-  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
+  const savedPlayback = useRef<SavedPlaybackState | null>(loadSavedPlaybackState()).current;
 
-  const [currentSong, setCurrentSong] = useState<Song>(() => songs[0]);
+  const [currentQueue, setCurrentQueue] = useState<Song[]>(() => {
+    if (savedPlayback?.currentQueue && Array.isArray(savedPlayback.currentQueue) && savedPlayback.currentQueue.length > 0) {
+      return savedPlayback.currentQueue;
+    }
+    return songs;
+  });
+  const [currentQueueIndex, setCurrentQueueIndex] = useState<number>(() => {
+    if (typeof savedPlayback?.currentQueueIndex === 'number' && savedPlayback.currentQueueIndex >= 0) {
+      return savedPlayback.currentQueueIndex;
+    }
+    return 0;
+  });
+  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(() => {
+    return savedPlayback?.activePlaylistId ?? null;
+  });
+
+  const [currentSong, setCurrentSong] = useState<Song>(() => {
+    if (savedPlayback?.currentSong && savedPlayback.currentSong.youtubeId) {
+      return savedPlayback.currentSong;
+    }
+    return songs[0];
+  });
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [currentTime, setCurrentTime] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(0);
+  const [currentTime, setCurrentTime] = useState<number>(() => {
+    if (typeof savedPlayback?.currentTime === 'number' && !isNaN(savedPlayback.currentTime) && savedPlayback.currentTime > 0) {
+      return savedPlayback.currentTime;
+    }
+    return 0;
+  });
+  const [duration, setDuration] = useState<number>(() => {
+    if (typeof savedPlayback?.duration === 'number' && !isNaN(savedPlayback.duration) && savedPlayback.duration > 0) {
+      return savedPlayback.duration;
+    }
+    return 0;
+  });
   const [volume, setVolumeState] = useState<number>(75);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isShuffle, setIsShuffle] = useState<boolean>(false);
@@ -100,7 +155,15 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const isInitializingRef = useRef<boolean>(false);
 
   // Playback mode ref (YouTube Playlist mode vs individual queue item mode)
-  const isYouTubePlaylistModeRef = useRef<boolean>(false);
+  const isYouTubePlaylistModeRef = useRef<boolean>(savedPlayback?.activePlaylistId === '80s-classics');
+
+  // Track initial restore seek position so playback resumes from exact position when played
+  const savedInitialTimeRef = useRef<number>(
+    typeof savedPlayback?.currentTime === 'number' && !isNaN(savedPlayback.currentTime) && savedPlayback.currentTime > 0
+      ? savedPlayback.currentTime
+      : 0
+  );
+  const hasRestoredSeekRef = useRef<boolean>(false);
 
   // Pending play actions before player is fully ready
   const pendingActionRef = useRef<{
@@ -122,16 +185,85 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   currentQueueRef.current = currentQueue;
   const currentQueueIndexRef = useRef(currentQueueIndex);
   currentQueueIndexRef.current = currentQueueIndex;
+  const activePlaylistIdRef = useRef(activePlaylistId);
+  activePlaylistIdRef.current = activePlaylistId;
   const isShuffleRef = useRef(isShuffle);
   isShuffleRef.current = isShuffle;
   const repeatModeRef = useRef(repeatMode);
   repeatModeRef.current = repeatMode;
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
+  const currentTimeRef = useRef(currentTime);
+  currentTimeRef.current = currentTime;
+  const durationRef = useRef(duration);
+  durationRef.current = duration;
   const volumeRef = useRef(volume);
   volumeRef.current = volume;
   const isMutedRef = useRef(isMuted);
   isMutedRef.current = isMuted;
+
+  // Persists current playback state immediately to localStorage
+  const savePlaybackState = useCallback((overrideTime?: number, overridePlaying?: boolean) => {
+    try {
+      let latestTime = overrideTime !== undefined ? overrideTime : currentTimeRef.current;
+      if (ytPlayerRef.current && isPlayerReadyRef.current && typeof ytPlayerRef.current.getCurrentTime === 'function') {
+        try {
+          const pTime = ytPlayerRef.current.getCurrentTime();
+          if (typeof pTime === 'number' && !isNaN(pTime) && pTime >= 0) {
+            latestTime = pTime;
+          }
+        } catch (e) {}
+      }
+
+      let latestDuration = durationRef.current;
+      if (ytPlayerRef.current && isPlayerReadyRef.current && typeof ytPlayerRef.current.getDuration === 'function') {
+        try {
+          const pDur = ytPlayerRef.current.getDuration();
+          if (typeof pDur === 'number' && !isNaN(pDur) && pDur > 0) {
+            latestDuration = pDur;
+          }
+        } catch (e) {}
+      }
+
+      const stateToSave: SavedPlaybackState = {
+        currentSong: currentSongRef.current,
+        currentQueue: currentQueueRef.current,
+        currentQueueIndex: currentQueueIndexRef.current,
+        activePlaylistId: activePlaylistIdRef.current,
+        currentTime: latestTime,
+        duration: latestDuration,
+        isPlaying: overridePlaying !== undefined ? overridePlaying : isPlayingRef.current,
+        timestamp: Date.now(),
+      };
+
+      localStorage.setItem(LOCAL_STORAGE_PLAYBACK_KEY, JSON.stringify(stateToSave));
+    } catch (err) {
+      console.warn('Failed to save playback state to localStorage:', err);
+    }
+  }, []);
+
+  // Save playback state immediately when user leaves / closes / pauses the page
+  useEffect(() => {
+    const handleUnload = () => {
+      savePlaybackState();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        savePlaybackState();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [savePlaybackState]);
 
   // Updates current song metadata from the active YouTube Player instance
   const syncTrackFromPlayer = useCallback((player: any) => {
@@ -184,10 +316,11 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         };
         setCurrentSong(dynamicSong);
       }
+      savePlaybackState();
     } catch (err) {
       console.warn('Error syncing track metadata from player:', err);
     }
-  }, []);
+  }, [savePlaybackState]);
 
   // Next song definition
   const nextSong = useCallback(() => {
@@ -196,6 +329,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     // Reset single skip debounce flag
     isSkippingRef.current = false;
+    hasRestoredSeekRef.current = true;
 
     if (isYouTubePlaylistModeRef.current && player && isReady) {
       try {
@@ -210,6 +344,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             player.playVideoAt(randIdx);
             setIsPlaying(true);
             setErrorMessage(null);
+            savePlaybackState(0, true);
             return;
           }
         }
@@ -217,6 +352,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
           player.nextVideo();
           setIsPlaying(true);
           setErrorMessage(null);
+          savePlaybackState(0, true);
           return;
         }
       } catch (err) {
@@ -246,6 +382,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setCurrentTime(0);
       setIsPlaying(true);
       setErrorMessage(null);
+      savePlaybackState(0, true);
 
       if (player && isReady && typeof player.loadVideoById === 'function') {
         player.loadVideoById(nextTrack.youtubeId);
@@ -253,7 +390,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         pendingActionRef.current = { type: 'video', videoId: nextTrack.youtubeId };
       }
     }
-  }, []);
+  }, [savePlaybackState]);
 
   const nextSongRef = useRef(nextSong);
   nextSongRef.current = nextSong;
@@ -262,6 +399,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const prevSong = useCallback(() => {
     const player = ytPlayerRef.current;
     const isReady = isPlayerReadyRef.current;
+    hasRestoredSeekRef.current = true;
 
     // If past 3 seconds, restart current track
     if (player && isReady && typeof player.getCurrentTime === 'function') {
@@ -269,6 +407,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (typeof curTime === 'number' && curTime > 3) {
         player.seekTo(0, true);
         setCurrentTime(0);
+        savePlaybackState(0);
         return;
       }
     }
@@ -286,6 +425,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             player.playVideoAt(randIdx);
             setIsPlaying(true);
             setErrorMessage(null);
+            savePlaybackState(0, true);
             return;
           }
         }
@@ -293,6 +433,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
           player.previousVideo();
           setIsPlaying(true);
           setErrorMessage(null);
+          savePlaybackState(0, true);
           return;
         }
       } catch (err) {
@@ -322,6 +463,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setCurrentTime(0);
       setIsPlaying(true);
       setErrorMessage(null);
+      savePlaybackState(0, true);
 
       if (player && isReady && typeof player.loadVideoById === 'function') {
         player.loadVideoById(prevTrack.youtubeId);
@@ -329,7 +471,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         pendingActionRef.current = { type: 'video', videoId: prevTrack.youtubeId };
       }
     }
-  }, []);
+  }, [savePlaybackState]);
 
   // Core Playback Error Handler: Automatically skips unplayable videos (errors 150, 101, 100, 2, 5, etc.)
   const handlePlaybackError = useCallback((errorCode: number) => {
@@ -412,8 +554,6 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
           height: '240',
           width: '320',
           playerVars: {
-            listType: 'playlist',
-            list: YOUTUBE_80S_PLAYLIST_ID,
             autoplay: 0,
             controls: 0,
             disablekb: 1,
@@ -460,6 +600,26 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 } else if (action.type === 'play') {
                   event.target.playVideo();
                 }
+              } else {
+                // Restoration on initial load: Cue video/playlist and seek without playing
+                const initialTime = savedInitialTimeRef.current;
+                if (isYouTubePlaylistModeRef.current) {
+                  if (typeof event.target.cuePlaylist === 'function') {
+                    event.target.cuePlaylist({
+                      list: activePlaylistIdRef.current || YOUTUBE_80S_PLAYLIST_ID,
+                      listType: 'playlist',
+                      index: currentQueueIndexRef.current || 0,
+                      startSeconds: initialTime,
+                    });
+                  }
+                } else if (currentSongRef.current?.youtubeId) {
+                  if (typeof event.target.cueVideoById === 'function') {
+                    event.target.cueVideoById({
+                      videoId: currentSongRef.current.youtubeId,
+                      startSeconds: initialTime,
+                    });
+                  }
+                }
               }
             },
             onStateChange: (event: any) => {
@@ -473,12 +633,15 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 isSkippingRef.current = false;
 
                 syncTrackFromPlayer(event.target);
+                savePlaybackState(undefined, true);
               } else if (state === 2) {
                 // PAUSED
                 setIsPlaying(false);
+                savePlaybackState(undefined, false);
               } else if (state === 0) {
                 // ENDED
                 setIsPlaying(false);
+                savePlaybackState(0, false);
                 if (repeatModeRef.current === 'one') {
                   try {
                     event.target.seekTo(0, true);
@@ -532,7 +695,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         clearInterval(checkInterval);
       }
     };
-  }, [handlePlaybackError, syncTrackFromPlayer]);
+  }, [handlePlaybackError, syncTrackFromPlayer, savePlaybackState]);
 
   // Volume & Mute Sync with YouTube Player
   useEffect(() => {
@@ -546,9 +709,10 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [volume, isMuted]);
 
-  // Time & Duration polling while playing
+  // Time & Duration polling while playing + periodic persistence (every 1s)
   useEffect(() => {
     let interval: any = null;
+    let tickCount = 0;
 
     if (isPlaying) {
       interval = setInterval(() => {
@@ -561,6 +725,12 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
           if (typeof dur === 'number' && !isNaN(dur) && dur > 0) {
             setDuration(dur);
           }
+
+          // Persist playback state every 1 second (4 ticks * 250ms)
+          tickCount++;
+          if (tickCount % 4 === 0) {
+            savePlaybackState(curTime, true);
+          }
         }
       }, 250);
     }
@@ -568,7 +738,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPlaying]);
+  }, [isPlaying, savePlaybackState]);
 
   // Controls Implementation
   const togglePlay = useCallback(() => {
@@ -584,11 +754,22 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (isPlayingRef.current) {
       if (typeof player.pauseVideo === 'function') player.pauseVideo();
       setIsPlaying(false);
+      savePlaybackState(undefined, false);
     } else {
+      // If we are resuming from a restored state, ensure seek to restored position
+      if (!hasRestoredSeekRef.current && savedInitialTimeRef.current > 0) {
+        hasRestoredSeekRef.current = true;
+        try {
+          if (typeof player.seekTo === 'function') {
+            player.seekTo(savedInitialTimeRef.current, true);
+          }
+        } catch (e) {}
+      }
       if (typeof player.playVideo === 'function') player.playVideo();
       setIsPlaying(true);
+      savePlaybackState(undefined, true);
     }
-  }, []);
+  }, [savePlaybackState]);
 
   const pause = useCallback(() => {
     const player = ytPlayerRef.current;
@@ -596,7 +777,8 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       player.pauseVideo();
     }
     setIsPlaying(false);
-  }, []);
+    savePlaybackState(undefined, false);
+  }, [savePlaybackState]);
 
   const playSong = useCallback((index?: number) => {
     const queue = currentQueueRef.current;
@@ -605,6 +787,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const targetSong = queue[newIndex];
     if (!targetSong) return;
 
+    hasRestoredSeekRef.current = true;
     isYouTubePlaylistModeRef.current = false;
     setCurrentQueueIndex(newIndex);
     setCurrentSong(targetSong);
@@ -612,6 +795,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setIsPlaying(true);
     setErrorMessage(null);
     skipCountRef.current = 0;
+    savePlaybackState(0, true);
 
     const player = ytPlayerRef.current;
     if (player && isPlayerReadyRef.current && typeof player.loadVideoById === 'function') {
@@ -620,15 +804,17 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } else {
       pendingActionRef.current = { type: 'video', videoId: targetSong.youtubeId };
     }
-  }, []);
+  }, [savePlaybackState]);
 
   const playQueue = useCallback((queue: Song[], startIndex = 0, playlistId?: string) => {
     const is80sPlaylist = playlistId === '80s-classics';
+    hasRestoredSeekRef.current = true;
     setActivePlaylistId(playlistId || null);
     skipCountRef.current = 0;
     setErrorMessage(null);
     setCurrentTime(0);
     setIsPlaying(true);
+    savePlaybackState(0, true);
 
     if (is80sPlaylist) {
       isYouTubePlaylistModeRef.current = true;
@@ -678,7 +864,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } else {
       pendingActionRef.current = { type: 'video', videoId: targetSong.youtubeId };
     }
-  }, []);
+  }, [savePlaybackState]);
 
   const playSongInQueue = useCallback((song: Song, queue?: Song[], playlistId?: string) => {
     if (!song) return;
@@ -697,10 +883,12 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const seek = useCallback((timeInSeconds: number) => {
     const clampedTime = Math.max(0, Math.min(timeInSeconds, duration || 100));
     setCurrentTime(clampedTime);
+    hasRestoredSeekRef.current = true;
     if (ytPlayerRef.current && isPlayerReadyRef.current && typeof ytPlayerRef.current.seekTo === 'function') {
       ytPlayerRef.current.seekTo(clampedTime, true);
     }
-  }, [duration]);
+    savePlaybackState(clampedTime);
+  }, [duration, savePlaybackState]);
 
   const setVolume = useCallback((vol: number) => {
     const clamped = Math.max(0, Math.min(100, vol));
