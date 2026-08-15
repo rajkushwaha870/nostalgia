@@ -125,7 +125,7 @@ export const About: React.FC<AboutProps> = ({ onSelectTab }) => {
       {onSelectTab && (
         <div className="pt-6">
           <button
-            onClick={() => onSelectTab('PLAYLISTS')}
+            onClick={() => onSelectTab('HOME')}
             className="inline-flex items-center space-x-2 px-8 py-3.5 bg-[#B9472F] hover:bg-[#C94B32] active:bg-[#8F3025] text-[#F1D7A3] font-mono text-xs tracking-widest uppercase font-bold rounded-xs transition-all shadow-lg hover:shadow-xl border border-[#F1D7A3]/30 cursor-pointer"
           >
             <Compass className="w-4 h-4" />

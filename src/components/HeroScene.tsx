@@ -3,7 +3,6 @@ import { Logo } from './Logo';
 import { Navbar } from './Navbar';
 import { MusicPlayer } from './MusicPlayer';
 import { SocialLinks } from './SocialLinks';
-import { Playlists } from '../pages/Playlists';
 import { FavouritesView } from './FavouritesView';
 import { About } from '../pages/About';
 import { Contact } from '../pages/Contact';
@@ -74,12 +73,6 @@ export const HeroScene: React.FC<HeroSceneProps> = ({ activeTab, onSelectTab }) 
                   — AIR VIVID RETRO
                 </span>
               </div>
-            </div>
-          )}
-
-          {activeTab === 'PLAYLISTS' && (
-            <div>
-              <Playlists />
             </div>
           )}
 

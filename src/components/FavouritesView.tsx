@@ -105,11 +105,11 @@ export const FavouritesView: React.FC<FavouritesViewProps> = ({ onSelectTab }) =
           </p>
 
           <button
-            onClick={() => onSelectTab?.('PLAYLISTS')}
+            onClick={() => onSelectTab?.('HOME')}
             className="mt-2 px-6 py-2.5 bg-[#B9472F] hover:bg-[#C94B32] active:scale-95 text-[#F1D7A3] font-mono text-xs font-semibold tracking-widest uppercase rounded-xs border border-[#F1D7A3]/30 shadow-md transition-all cursor-pointer flex items-center gap-2"
           >
-            <Disc className="w-3.5 h-3.5" />
-            <span>EXPLORE PLAYLISTS</span>
+            <Music className="w-3.5 h-3.5" />
+            <span>EXPLORE SONGS</span>
           </button>
         </div>
       )}
