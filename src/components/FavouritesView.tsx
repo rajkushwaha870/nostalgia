@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, Music, Play, Disc } from 'lucide-react';
+import { Heart, Music, Play } from 'lucide-react';
 import { songs } from '../data/songs';
 import type { Song } from '../data/songs';
 import { SongItem } from './SongItem';
