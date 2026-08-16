@@ -115,9 +115,14 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [currentSong, setCurrentSong] = useState<Song>(() => {
     if (savedPlayback?.currentSong && savedPlayback.currentSong.youtubeId) {
       // If saved song exists in our playlist dataset, use it
-      const matched = songs.find((s) => s.youtubeId === savedPlayback.currentSong.youtubeId);
+      const matched = songs.find((s) => s.youtubeId === savedPlayback.currentSong.youtubeId || s.id === savedPlayback.currentSong.id);
       if (matched) return matched;
-      return savedPlayback.currentSong;
+      return {
+        ...savedPlayback.currentSong,
+        artwork: savedPlayback.currentSong.artwork && !savedPlayback.currentSong.artwork.includes('.svg')
+          ? savedPlayback.currentSong.artwork
+          : `https://img.youtube.com/vi/${savedPlayback.currentSong.youtubeId}/hqdefault.jpg`,
+      };
     }
     return songs[0];
   });

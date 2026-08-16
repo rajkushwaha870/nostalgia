@@ -50,15 +50,28 @@ export const MusicPlayer: React.FC = () => {
   const [artworkAnimate, setArtworkAnimate] = useState(false);
 
   const fallbackArtwork = '/hero-bg.png';
-  const [artworkSrc, setArtworkSrc] = useState<string>(currentSong.artwork || fallbackArtwork);
+  
+  const getArtwork = (song: typeof currentSong): string => {
+    if (song?.artwork && !song.artwork.includes('.svg')) {
+      return song.artwork;
+    }
+    if (song?.youtubeId) {
+      return `https://img.youtube.com/vi/${song.youtubeId}/hqdefault.jpg`;
+    }
+    return song?.artwork || fallbackArtwork;
+  };
+
+  const [artworkSrc, setArtworkSrc] = useState<string>(() => getArtwork(currentSong));
 
   // Synchronize artwork image whenever song changes
   useEffect(() => {
-    setArtworkSrc(currentSong.artwork || fallbackArtwork);
-  }, [currentSong.id, currentSong.artwork]);
+    setArtworkSrc(getArtwork(currentSong));
+  }, [currentSong.id, currentSong.artwork, currentSong.youtubeId]);
 
   const handleArtworkError = () => {
-    if (artworkSrc !== fallbackArtwork) {
+    if (currentSong?.youtubeId && !artworkSrc.includes('mqdefault')) {
+      setArtworkSrc(`https://img.youtube.com/vi/${currentSong.youtubeId}/mqdefault.jpg`);
+    } else if (artworkSrc !== fallbackArtwork) {
       setArtworkSrc(fallbackArtwork);
     }
   };
