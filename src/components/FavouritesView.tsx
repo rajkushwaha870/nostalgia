@@ -12,19 +12,19 @@ interface FavouritesViewProps {
 
 export const FavouritesView: React.FC<FavouritesViewProps> = ({ onSelectTab }) => {
   const { favorites } = useFavourites();
-  const { playQueue } = useMusicPlayer();
+  const { playFavouriteSong } = useMusicPlayer();
 
   // Filter songs based on current favorites list
   const favoriteSongs = songs.filter((s) => favorites.includes(s.id));
 
   const handlePlayAll = () => {
     if (favoriteSongs.length > 0) {
-      playQueue(favoriteSongs, 0, 'favourites');
+      playFavouriteSong(favoriteSongs[0]);
     }
   };
 
   const handlePlaySongInFavourites = (song: Song) => {
-    playQueue(favoriteSongs, favoriteSongs.findIndex((s) => s.id === song.id), 'favourites');
+    playFavouriteSong(song);
   };
 
   return (

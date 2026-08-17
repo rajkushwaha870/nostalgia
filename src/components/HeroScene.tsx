@@ -30,19 +30,22 @@ export const HeroScene: React.FC<HeroSceneProps> = ({ activeTab, onSelectTab }) 
       {/* 1. BACKGROUND SCENE ARTWORK & CINEMATIC OVERLAYS */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         {/* Daytime / Default Scene Artwork */}
-        <img
-          src="/hero-bg.png"
-          alt="Vintage Indian Village Tea Stall Scene with Radio Listener"
-          loading="eager"
-          // @ts-expect-error fetchpriority attribute
-          fetchpriority="high"
-          className={`absolute inset-0 w-full h-full object-cover object-center scale-105 transition-opacity duration-700 ease-in-out filter brightness-100 contrast-105 saturate-105 ${
-            mode === 'night' ? 'opacity-0' : 'opacity-100'
-          }`}
-          style={{
-            transform: `translate3d(${bgX}px, ${bgY}px, 0) scale(1.04)`,
-          }}
-        />
+        <picture>
+          <source media="(max-width: 767px)" srcSet="/hero-mobile-bg.jpg" />
+          <img
+            src="/hero-bg.png"
+            alt="Vintage Indian Village Tea Stall Scene with Radio Listener"
+            loading="eager"
+            // @ts-expect-error fetchpriority attribute
+            fetchpriority="high"
+            className={`absolute inset-0 w-full h-full object-cover object-center scale-105 transition-opacity duration-700 ease-in-out filter brightness-100 contrast-105 saturate-105 ${
+              mode === 'night' ? 'opacity-0' : 'opacity-100'
+            }`}
+            style={{
+              transform: `translate3d(${bgX}px, ${bgY}px, 0) scale(1.04)`,
+            }}
+          />
+        </picture>
 
         {/* Night Scene Artwork */}
         <img
@@ -79,7 +82,7 @@ export const HeroScene: React.FC<HeroSceneProps> = ({ activeTab, onSelectTab }) 
         <Logo onSelectTab={onSelectTab} />
 
         {/* Right: Mode Selector & Navigation Menu */}
-        <div className="flex flex-col items-center md:items-end pt-1 md:pt-2 w-full md:w-auto space-y-2.5 sm:space-y-3">
+        <div className="flex items-center space-x-2 sm:space-x-3 pt-1 md:pt-2">
           <ModeSelector />
           <Navbar activeTab={activeTab} onSelectTab={onSelectTab} />
         </div>

@@ -33,6 +33,7 @@ interface MusicPlayerContextType {
   playSong: (index?: number) => void;
   playQueue: (queue: Song[], startIndex?: number, playlistId?: string) => void;
   playSongInQueue: (song: Song, queue?: Song[], playlistId?: string) => void;
+  playFavouriteSong: (song: Song) => void;
   pause: () => void;
   nextSong: () => void;
   prevSong: () => void;
@@ -98,6 +99,9 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const [currentQueue, setCurrentQueue] = useState<Song[]>(() => {
     if (savedPlayback?.currentQueue && Array.isArray(savedPlayback.currentQueue) && savedPlayback.currentQueue.length > 0) {
+      if (savedPlayback.activePlaylistId === 'favourites') {
+        return songs;
+      }
       return savedPlayback.currentQueue;
     }
     return songs;
@@ -109,6 +113,9 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return 0;
   });
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(() => {
+    if (savedPlayback?.activePlaylistId === 'favourites') {
+      return YOUTUBE_PLAYLIST_ID;
+    }
     return savedPlayback?.activePlaylistId ?? YOUTUBE_PLAYLIST_ID;
   });
 
@@ -807,6 +814,47 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     playQueue(targetQueue, idxToPlay, playlistId);
   }, [playQueue]);
 
+  const playFavouriteSong = useCallback((song: Song) => {
+    if (!song) return;
+
+    hasRestoredSeekRef.current = true;
+    // Keep or restore the master YouTube playlist queue
+    const masterPlaylist = songs;
+    setCurrentQueue(masterPlaylist);
+    setActivePlaylistId(YOUTUBE_PLAYLIST_ID);
+
+    // Locate the song index within the YouTube playlist
+    const songIdx = masterPlaylist.findIndex((s) => s.id === song.id || s.youtubeId === song.youtubeId);
+    const validIndex = songIdx !== -1 ? songIdx : 0;
+    setCurrentQueueIndex(validIndex);
+
+    const targetSong = songIdx !== -1 ? masterPlaylist[songIdx] : song;
+    setCurrentSong(targetSong);
+    setCurrentTime(0);
+    setIsPlaying(true);
+    setErrorMessage(null);
+    skipCountRef.current = 0;
+    savePlaybackState(0, true);
+
+    const player = ytPlayerRef.current;
+    if (player && isPlayerReadyRef.current) {
+      try {
+        if (targetSong?.youtubeId && typeof player.loadVideoById === 'function') {
+          player.loadVideoById(targetSong.youtubeId);
+          player.playVideo();
+        }
+      } catch (e) {
+        console.warn('Error playing favourite song:', e);
+      }
+    } else {
+      pendingActionRef.current = {
+        type: 'video',
+        videoId: targetSong?.youtubeId,
+        startIndex: validIndex,
+      };
+    }
+  }, [savePlaybackState]);
+
   const seek = useCallback((timeInSeconds: number) => {
     const clampedTime = Math.max(0, Math.min(timeInSeconds, duration || 100));
     setCurrentTime(clampedTime);
@@ -986,6 +1034,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         playSong,
         playQueue,
         playSongInQueue,
+        playFavouriteSong,
         pause,
         nextSong,
         prevSong,
