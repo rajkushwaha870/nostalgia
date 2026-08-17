@@ -208,6 +208,46 @@ body {
   to { opacity: 1; }
 }
 
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.25); filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.9)); }
+}
+
+.animate-twinkle {
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+@keyframes windLeafSway {
+  0%, 100% { transform: rotate(0deg) translateY(0px) skewX(0deg); }
+  25% { transform: rotate(2deg) translateY(2px) skewX(1deg); }
+  50% { transform: rotate(-1.5deg) translateY(-2px) skewX(-0.5deg); }
+  75% { transform: rotate(2.5deg) translateY(3px) skewX(1.2deg); }
+}
+
+@keyframes mistDrift {
+  0% { transform: translateX(-2%) translateY(0); opacity: 0.3; }
+  50% { transform: translateX(2%) translateY(-4px); opacity: 0.55; }
+  100% { transform: translateX(-2%) translateY(0); opacity: 0.3; }
+}
+
+@keyframes dropletDrip {
+  0%, 70% { transform: translateY(0); opacity: 0.75; }
+  85% { transform: translateY(8px) scaleY(1.2); opacity: 0.6; }
+  100% { transform: translateY(16px) scaleY(0.9); opacity: 0.75; }
+}
+
+.animate-wind-sway {
+  animation: windLeafSway 6s ease-in-out infinite;
+}
+
+.animate-mist-drift {
+  animation: mistDrift 12s ease-in-out infinite;
+}
+
+.animate-droplet-drip {
+  animation: dropletDrip 8s ease-in-out infinite;
+}
+
 .animate-sunset-glow {
   animation: sunsetGlow 10s ease-in-out infinite;
 }

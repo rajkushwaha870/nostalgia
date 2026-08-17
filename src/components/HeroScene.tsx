@@ -10,6 +10,9 @@ import { useParallax } from '../hooks/useParallax';
 import { AmbientDust } from './AmbientDust';
 import { RadioGlow } from './RadioGlow';
 import { CinematicOverlay } from './CinematicOverlay';
+import { RainOverlay } from './RainOverlay';
+import { ModeSelector } from './ModeSelector';
+import { useSceneMode } from '../context/SceneModeContext';
 import { PageTransition } from './PageTransition';
 
 interface HeroSceneProps {
@@ -19,20 +22,38 @@ interface HeroSceneProps {
 
 export const HeroScene: React.FC<HeroSceneProps> = ({ activeTab, onSelectTab }) => {
   const { bgX, bgY } = useParallax();
+  const { mode } = useSceneMode();
 
   return (
     <div className="relative min-h-screen w-full flex flex-col justify-between overflow-x-hidden bg-[#24150F] text-[#F1D7A3] select-none">
       
       {/* 1. BACKGROUND SCENE ARTWORK & CINEMATIC OVERLAYS */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        {/* Primary Hero Artwork - Priority Eager Load, Untouched Original Asset */}
+        {/* Daytime / Default Scene Artwork */}
         <img
           src="/hero-bg.png"
           alt="Vintage Indian Village Tea Stall Scene with Radio Listener"
           loading="eager"
           // @ts-expect-error fetchpriority attribute
           fetchpriority="high"
-          className="w-full h-full object-cover object-center scale-105 transition-transform duration-300 ease-out filter brightness-100 contrast-105 saturate-105"
+          className={`absolute inset-0 w-full h-full object-cover object-center scale-105 transition-opacity duration-700 ease-in-out filter brightness-100 contrast-105 saturate-105 ${
+            mode === 'night' ? 'opacity-0' : 'opacity-100'
+          }`}
+          style={{
+            transform: `translate3d(${bgX}px, ${bgY}px, 0) scale(1.04)`,
+          }}
+        />
+
+        {/* Night Scene Artwork */}
+        <img
+          src="/hero-night-bg.png"
+          alt="Vintage Indian Village Tea Stall Scene at Night"
+          loading="eager"
+          // @ts-expect-error fetchpriority attribute
+          fetchpriority="high"
+          className={`absolute inset-0 w-full h-full object-cover object-center scale-105 transition-opacity duration-700 ease-in-out filter brightness-100 contrast-105 saturate-105 ${
+            mode === 'night' ? 'opacity-100' : 'opacity-0'
+          }`}
           style={{
             transform: `translate3d(${bgX}px, ${bgY}px, 0) scale(1.04)`,
           }}
@@ -41,11 +62,15 @@ export const HeroScene: React.FC<HeroSceneProps> = ({ activeTab, onSelectTab }) 
         {/* Radio Ambient Glow connected to Audio State */}
         <RadioGlow />
 
-        {/* Environmental Cinematic Overlay (Sunset Glow, Leaf Sway, Lantern Flicker, Grain & Vignette) */}
-        <CinematicOverlay />
+        {/* Dynamic Mode Atmospheric Overlays */}
+        {mode === 'normal' && (
+          <>
+            <CinematicOverlay />
+            <AmbientDust />
+          </>
+        )}
 
-        {/* Sunset Ambient Floating Dust */}
-        <AmbientDust />
+        {mode === 'rain' && <RainOverlay />}
       </div>
 
       {/* 2. TOP SECTION: BRANDING / LOGO (LEFT) & NAVBAR (RIGHT) */}
@@ -53,8 +78,9 @@ export const HeroScene: React.FC<HeroSceneProps> = ({ activeTab, onSelectTab }) 
         {/* Left: Vintage Indian Logo & Tagline */}
         <Logo onSelectTab={onSelectTab} />
 
-        {/* Right: Navigation Menu (Right-Aligned on Desktop, Compact Responsive on Mobile) */}
-        <div className="flex flex-col items-center md:items-end pt-1 md:pt-2 w-full md:w-auto">
+        {/* Right: Mode Selector & Navigation Menu */}
+        <div className="flex flex-col items-center md:items-end pt-1 md:pt-2 w-full md:w-auto space-y-2.5 sm:space-y-3">
+          <ModeSelector />
           <Navbar activeTab={activeTab} onSelectTab={onSelectTab} />
         </div>
       </header>
