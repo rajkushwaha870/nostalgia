@@ -163,8 +163,6 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const isPlayerReadyRef = useRef<boolean>(false);
   const isInitializingRef = useRef<boolean>(false);
 
-  // Exclusively in YouTube Playlist mode
-  const isYouTubePlaylistModeRef = useRef<boolean>(true);
 
   // Track initial restore seek position so playback resumes from exact position when played
   const savedInitialTimeRef = useRef<number>(
@@ -289,29 +287,33 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const rawAuthor = videoData?.author || '';
 
       // Check for duration
-      let dur = 0;
       if (typeof player.getDuration === 'function') {
         const d = player.getDuration();
         if (typeof d === 'number' && !isNaN(d) && d > 0) {
-          dur = d;
           setDuration(d);
         }
       }
 
-      // If we find a matching song in our local playlist dataset, preserve rich metadata
+      // If currentSong already matches this videoId, don't overwrite
+      if (currentSongRef.current && currentSongRef.current.youtubeId === videoId) {
+        savePlaybackState();
+        return;
+      }
+
+      // If we find a matching song in currentQueue or master dataset, preserve rich metadata
       const matchedSong = videoId
         ? (currentQueueRef.current.find((s) => s.youtubeId === videoId) ||
            songs.find((s) => s.youtubeId === videoId))
         : null;
 
       if (matchedSong) {
-        const queueIdx = currentQueueRef.current.findIndex((s) => s.id === matchedSong.id);
+        const queueIdx = currentQueueRef.current.findIndex((s) => s.id === matchedSong.id || s.youtubeId === matchedSong.youtubeId);
         if (queueIdx !== -1) {
           setCurrentQueueIndex(queueIdx);
         }
         setCurrentSong(matchedSong);
       } else if (rawTitle || videoId) {
-        // Dynamic song from YouTube playlist
+        // Dynamic song fallback
         const dynamicSong: Song = {
           id: generateNumericId(videoId || rawTitle),
           title: rawTitle || 'Vintage Classic Melody',
@@ -320,7 +322,6 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
           artwork: videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '/images/song-1.svg',
           youtubeId: videoId,
           category: 'vintage-classics',
-          duration: dur > 0 ? `${Math.floor(dur / 60)}:${(Math.floor(dur % 60)).toString().padStart(2, '0')}` : undefined,
           playlistIds: [YOUTUBE_PLAYLIST_ID, 'vintage-classics'],
         };
         setCurrentSong(dynamicSong);
@@ -362,35 +363,18 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setErrorMessage(null);
       savePlaybackState(0, true);
 
-      const masterIndex = songs.findIndex((s) => s.id === nextTrack.id || s.youtubeId === nextTrack.youtubeId);
-      const ytIndexToPlay = masterIndex !== -1 ? masterIndex : nextIdx;
-
       if (player && isReady) {
         try {
-          if (typeof player.playVideoAt === 'function') {
-            player.playVideoAt(ytIndexToPlay);
-            player.playVideo();
-            return;
-          }
-          if (typeof player.loadPlaylist === 'function') {
-            player.loadPlaylist({
-              list: YOUTUBE_PLAYLIST_ID,
-              listType: 'playlist',
-              index: ytIndexToPlay,
-            });
-            player.playVideo();
-            return;
-          }
-          if (typeof player.nextVideo === 'function') {
-            player.nextVideo();
+          if (nextTrack.youtubeId && typeof player.loadVideoById === 'function') {
+            player.loadVideoById(nextTrack.youtubeId);
             player.playVideo();
             return;
           }
         } catch (err) {
-          console.warn('Error advancing playlist track:', err);
+          console.warn('Error playing next track:', err);
         }
       } else {
-        pendingActionRef.current = { type: 'playlist', playlistId: YOUTUBE_PLAYLIST_ID, startIndex: ytIndexToPlay };
+        pendingActionRef.current = { type: 'video', videoId: nextTrack.youtubeId, startIndex: nextIdx };
       }
     }
   }, [savePlaybackState]);
@@ -438,35 +422,18 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setErrorMessage(null);
       savePlaybackState(0, true);
 
-      const masterIndex = songs.findIndex((s) => s.id === prevTrack.id || s.youtubeId === prevTrack.youtubeId);
-      const ytIndexToPlay = masterIndex !== -1 ? masterIndex : prevIdx;
-
       if (player && isReady) {
         try {
-          if (typeof player.playVideoAt === 'function') {
-            player.playVideoAt(ytIndexToPlay);
-            player.playVideo();
-            return;
-          }
-          if (typeof player.loadPlaylist === 'function') {
-            player.loadPlaylist({
-              list: YOUTUBE_PLAYLIST_ID,
-              listType: 'playlist',
-              index: ytIndexToPlay,
-            });
-            player.playVideo();
-            return;
-          }
-          if (typeof player.previousVideo === 'function') {
-            player.previousVideo();
+          if (prevTrack.youtubeId && typeof player.loadVideoById === 'function') {
+            player.loadVideoById(prevTrack.youtubeId);
             player.playVideo();
             return;
           }
         } catch (err) {
-          console.warn('Error playing previous playlist track:', err);
+          console.warn('Error playing previous track:', err);
         }
       } else {
-        pendingActionRef.current = { type: 'playlist', playlistId: YOUTUBE_PLAYLIST_ID, startIndex: ytIndexToPlay };
+        pendingActionRef.current = { type: 'video', videoId: prevTrack.youtubeId, startIndex: prevIdx };
       }
     }
   }, [savePlaybackState]);
@@ -547,12 +514,12 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       isInitializingRef.current = true;
 
       try {
+        const initialSong = currentSongRef.current || songs[0];
         ytPlayerRef.current = new window.YT.Player(container, {
           height: '240',
           width: '320',
+          videoId: initialSong.youtubeId,
           playerVars: {
-            listType: 'playlist',
-            list: YOUTUBE_PLAYLIST_ID,
             autoplay: 0,
             controls: 0,
             disablekb: 1,
@@ -566,7 +533,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
           events: {
             onReady: (event: any) => {
               isPlayerReadyRef.current = true;
-              console.log('YT PLAYER ONREADY - SOURCE PLAYLIST:', YOUTUBE_PLAYLIST_ID);
+              console.log('YT PLAYER ONREADY');
 
               try {
                 if (isMutedRef.current) {
@@ -584,22 +551,17 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 const action = pendingActionRef.current;
                 pendingActionRef.current = null;
 
-                isYouTubePlaylistModeRef.current = true;
-                event.target.loadPlaylist({
-                  list: YOUTUBE_PLAYLIST_ID,
-                  listType: 'playlist',
-                  index: action.startIndex || 0,
-                });
-                event.target.playVideo();
+                if (action.videoId && typeof event.target.loadVideoById === 'function') {
+                  event.target.loadVideoById(action.videoId);
+                  event.target.playVideo();
+                }
               } else {
-                // Restoration on initial load: Cue playlist and seek without playing
+                // Restoration on initial load: Cue current song and seek without auto-playing
                 const initialTime = savedInitialTimeRef.current;
-                isYouTubePlaylistModeRef.current = true;
-                if (typeof event.target.cuePlaylist === 'function') {
-                  event.target.cuePlaylist({
-                    list: YOUTUBE_PLAYLIST_ID,
-                    listType: 'playlist',
-                    index: currentQueueIndexRef.current || 0,
+                const songToCue = currentSongRef.current || songs[0];
+                if (songToCue?.youtubeId && typeof event.target.cueVideoById === 'function') {
+                  event.target.cueVideoById({
+                    videoId: songToCue.youtubeId,
                     startSeconds: initialTime,
                   });
                 }
@@ -770,11 +732,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const targetSong = queue[newIndex] || songs[newIndex] || songs[0];
     if (!targetSong) return;
 
-    const masterIndex = songs.findIndex((s) => s.id === targetSong.id || s.youtubeId === targetSong.youtubeId);
-    const ytIndexToPlay = masterIndex !== -1 ? masterIndex : newIndex;
-
     hasRestoredSeekRef.current = true;
-    isYouTubePlaylistModeRef.current = true;
     setCurrentQueueIndex(newIndex);
     setCurrentSong(targetSong);
     setCurrentTime(0);
@@ -786,29 +744,21 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const player = ytPlayerRef.current;
     if (player && isPlayerReadyRef.current) {
       try {
-        if (typeof player.playVideoAt === 'function') {
-          player.playVideoAt(ytIndexToPlay);
-          player.playVideo();
-        } else if (typeof player.loadPlaylist === 'function') {
-          player.loadPlaylist({
-            list: YOUTUBE_PLAYLIST_ID,
-            listType: 'playlist',
-            index: ytIndexToPlay,
-          });
+        if (targetSong.youtubeId && typeof player.loadVideoById === 'function') {
+          player.loadVideoById(targetSong.youtubeId);
           player.playVideo();
         }
       } catch (e) {
-        console.warn('Error playing playlist track:', e);
+        console.warn('Error playing track:', e);
       }
     } else {
-      pendingActionRef.current = { type: 'playlist', playlistId: YOUTUBE_PLAYLIST_ID, startIndex: ytIndexToPlay };
+      pendingActionRef.current = { type: 'video', videoId: targetSong.youtubeId, startIndex: newIndex };
     }
   }, [savePlaybackState]);
 
   const playQueue = useCallback((queue: Song[], startIndex = 0, playlistId?: string) => {
     hasRestoredSeekRef.current = true;
-    isYouTubePlaylistModeRef.current = true;
-    setActivePlaylistId(playlistId || YOUTUBE_PLAYLIST_ID);
+    setActivePlaylistId(playlistId || null);
     skipCountRef.current = 0;
     setErrorMessage(null);
     setCurrentTime(0);
@@ -824,21 +774,11 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setCurrentSong(targetSong);
     }
 
-    const masterIndex = songs.findIndex((s) => s.id === targetSong.id || s.youtubeId === targetSong.youtubeId);
-    const ytIndexToPlay = masterIndex !== -1 ? masterIndex : validIndex;
-
     const player = ytPlayerRef.current;
     if (player && isPlayerReadyRef.current) {
       try {
-        if (typeof player.playVideoAt === 'function') {
-          player.playVideoAt(ytIndexToPlay);
-          player.playVideo();
-        } else if (typeof player.loadPlaylist === 'function') {
-          player.loadPlaylist({
-            list: YOUTUBE_PLAYLIST_ID,
-            listType: 'playlist',
-            index: ytIndexToPlay,
-          });
+        if (targetSong?.youtubeId && typeof player.loadVideoById === 'function') {
+          player.loadVideoById(targetSong.youtubeId);
           player.playVideo();
         }
       } catch (e) {
@@ -846,9 +786,9 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
     } else {
       pendingActionRef.current = {
-        type: 'playlist',
-        playlistId: YOUTUBE_PLAYLIST_ID,
-        startIndex: ytIndexToPlay,
+        type: 'video',
+        videoId: targetSong?.youtubeId,
+        startIndex: validIndex,
       };
     }
   }, [savePlaybackState]);
@@ -857,7 +797,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!song) return;
 
     const targetQueue = queue && queue.length > 0 ? queue : currentQueueRef.current;
-    const songIdx = targetQueue.findIndex((s) => s.id === song.id);
+    const songIdx = targetQueue.findIndex((s) => s.id === song.id || s.youtubeId === song.youtubeId);
     const idxToPlay = songIdx !== -1 ? songIdx : 0;
 
     if (queue && queue.length > 0) {
