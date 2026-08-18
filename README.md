@@ -13,7 +13,7 @@
 
 ## 🌐 Live Demo
 
-🔗 **Explore Nostalgia Live:** [https://nostalgia.pages.dev](https://nostalgia.pages.dev)  
+🔗 **Explore Nostalgia Live:** https://nostalgia-cek.pages.dev/
 *(Replace with your deployed Cloudflare Pages URL)*
 
 ---
@@ -176,6 +176,3 @@ npx wrangler pages deploy dist --project-name=nostalgia
 
 ---
 
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE) — see the LICENSE file for details.
