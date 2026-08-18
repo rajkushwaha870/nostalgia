@@ -62,7 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         aria-expanded={isOpen}
         aria-label="Main Navigation Menu"
         title="Open Navigation Menu"
-        className={`group flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-mono font-medium tracking-wider backdrop-blur-md border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E5AD54] ${
+        className={`group flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-mono font-medium tracking-wider backdrop-blur-md border transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E5AD54] ${
           isOpen
             ? 'bg-[#3A2116]/90 text-[#F1D7A3] border-[#E5AD54] shadow-[0_0_12px_rgba(229,173,84,0.3)]'
             : 'bg-[#1E110C]/85 text-[#F1D7A3]/90 hover:text-[#F1D7A3] hover:bg-[#3A2116]/70 border-[#C88A3D]/40 hover:border-[#E5AD54]/60 shadow-[0_2px_10px_rgba(0,0,0,0.4)]'
@@ -73,7 +73,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         ) : (
           <Menu className="w-3.5 h-3.5 text-[#E5AD54] transition-transform duration-200 group-hover:scale-110" />
         )}
-        <span className="font-semibold uppercase tracking-widest text-[10px] sm:text-[11px] text-[#F1D7A3]">
+        <span className="hidden sm:inline font-semibold uppercase tracking-widest text-[10px] sm:text-[11px] text-[#F1D7A3]">
           MENU
         </span>
       </button>

@@ -77,12 +77,12 @@ export const HeroScene: React.FC<HeroSceneProps> = ({ activeTab, onSelectTab }) 
       </div>
 
       {/* 2. TOP SECTION: BRANDING / LOGO (LEFT) & NAVBAR (RIGHT) */}
-      <header className="relative z-30 pt-4 sm:pt-6 md:pt-8 px-4 sm:px-8 md:px-16 flex flex-col md:flex-row items-center md:items-start justify-between gap-4 md:gap-0">
+      <header className="relative z-30 pt-3 sm:pt-6 md:pt-8 px-3.5 sm:px-8 md:px-16 flex flex-col md:flex-row items-start justify-between gap-2 md:gap-0">
         {/* Left: Vintage Indian Logo & Tagline */}
         <Logo onSelectTab={onSelectTab} />
 
-        {/* Right: Mode Selector & Navigation Menu */}
-        <div className="flex items-center space-x-2 sm:space-x-3 pt-1 md:pt-2">
+        {/* Right / Top-Right: Mode Selector & Navigation Menu */}
+        <div className="absolute top-3.5 right-3.5 sm:top-6 sm:right-8 md:static flex items-center space-x-1.5 sm:space-x-3 pt-0 md:pt-2 z-40">
           <ModeSelector />
           <Navbar activeTab={activeTab} onSelectTab={onSelectTab} />
         </div>
