@@ -48,19 +48,22 @@ export const HeroScene: React.FC<HeroSceneProps> = ({ activeTab, onSelectTab }) 
         </picture>
 
         {/* Night Scene Artwork */}
-        <img
-          src="/hero-night-bg.png"
-          alt="Vintage Indian Village Tea Stall Scene at Night"
-          loading="eager"
-          // @ts-expect-error fetchpriority attribute
-          fetchpriority="high"
-          className={`absolute inset-0 w-full h-full object-cover object-center scale-105 transition-opacity duration-700 ease-in-out filter brightness-100 contrast-105 saturate-105 ${
-            mode === 'night' ? 'opacity-100' : 'opacity-0'
-          }`}
-          style={{
-            transform: `translate3d(${bgX}px, ${bgY}px, 0) scale(1.04)`,
-          }}
-        />
+        <picture>
+          <source media="(max-width: 767px)" srcSet="/night.png" />
+          <img
+            src="/hero-night-bg.png"
+            alt="Vintage Indian Village Tea Stall Scene at Night"
+            loading="eager"
+            // @ts-expect-error fetchpriority attribute
+            fetchpriority="high"
+            className={`absolute inset-0 w-full h-full object-cover object-center scale-105 transition-opacity duration-700 ease-in-out filter brightness-100 contrast-105 saturate-105 ${
+              mode === 'night' ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{
+              transform: `translate3d(${bgX}px, ${bgY}px, 0) scale(1.04)`,
+            }}
+          />
+        </picture>
 
         {/* Radio Ambient Glow connected to Audio State */}
         <RadioGlow />
